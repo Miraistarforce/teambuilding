@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 本番環境ではPostgreSQLを推奨
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  password   String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  stores     Store[]
+}
+
+model Store {
+  id              Int      @id @default(autoincrement())
+  companyId       Int
+  name            String
+  managerPassword String
+  ownerPassword   String
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  staff           Staff[]
+  interviews      Interview[]
+  dailyReports    DailyReport[]
+  commentTemplates CommentTemplate[]
+  dailyReportFormat DailyReportFormat?
+  tensionAlertSettings TensionAlertSettings?
+  
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model Staff {
+  id                Int      @id @default(autoincrement())
+  storeId           Int
+  name              String
+  hourlyWage        Int
+  holidayAllowance  Int      @default(0)
+  overtimeRate      Float    @default(1.25)
+  otherAllowance    Int      @default(0)
+  hireDate          DateTime?
+  mbtiType          String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  store             Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  timeRecords       TimeRecord[]
+  interviews        Interview[]
+  dailyReports      DailyReport[]
+  tensionAnalyses   TensionAnalysis[]
+  tensionStats      StaffTensionStats?
+  
+  @@unique([storeId, name])
+  @@index([storeId])
+}
+
+model TimeRecord {
+  id           Int       @id @default(autoincrement())
+  staffId      Int
+  date         DateTime
+  clockIn      DateTime?
+  clockOut     DateTime?
+  breakStart   DateTime?
+  breakEnd     DateTime?
+  totalBreak   Int       @default(0)
+  workMinutes  Int       @default(0)
+  status       String    @default("NOT_STARTED")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  staff        Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  breakRecords BreakRecord[]
+  
+  @@unique([staffId, date])
+  @@index([date])
+  @@index([staffId])
+}
+
+model BreakRecord {
+  id           Int        @id @default(autoincrement())
+  timeRecordId Int
+  breakStart   DateTime
+  breakEnd     DateTime?
+  minutes      Int        @default(0)
+  
+  timeRecord   TimeRecord @relation(fields: [timeRecordId], references: [id], onDelete: Cascade)
+  
+  @@index([timeRecordId])
+}
+
+model Interview {
+  id           Int        @id @default(autoincrement())
+  staffId      Int
+  storeId      Int
+  audioUrl     String?
+  textContent  String?    @db.Text
+  summary      String?    @db.Text
+  advice       String?    @db.Text
+  createdBy    String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  staff        Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  store        Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@index([staffId])
+  @@index([storeId])
+  @@index([createdAt])
+}
+
+model DailyReport {
+  id           Int        @id @default(autoincrement())
+  staffId      Int
+  storeId      Int
+  date         DateTime
+  content      String     @db.Text
+  formData     String?    @db.Text
+  isRead       Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  staff        Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  store        Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  comments     DailyReportComment[]
+  tensionAnalysis TensionAnalysis?
+  
+  @@unique([staffId, date])
+  @@index([storeId, date])
+  @@index([staffId])
+  @@index([date])
+}
+
+model DailyReportComment {
+  id           Int        @id @default(autoincrement())
+  reportId     Int
+  emoji        String?
+  comment      String?    @db.Text
+  hasBonus     Boolean    @default(false)
+  createdBy    String
+  createdAt    DateTime   @default(now())
+  
+  report       DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  @@index([reportId])
+}
+
+model CommentTemplate {
+  id           Int        @id @default(autoincrement())
+  storeId      Int
+  template     String     @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  store        Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@index([storeId])
+}
+
+model DailyReportFormat {
+  id           Int        @id @default(autoincrement())
+  storeId      Int        @unique
+  fields       String     @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  store        Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}
+
+model TensionAnalysis {
+  id           Int        @id @default(autoincrement())
+  staffId      Int
+  reportId     Int        @unique
+  date         DateTime
+  tensionScore Float
+  keywords     String?    @db.Text
+  createdAt    DateTime   @default(now())
+  
+  staff        Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  report       DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  @@index([staffId, date])
+  @@index([staffId])
+  @@index([date])
+}
+
+model StaffTensionStats {
+  id           Int        @id @default(autoincrement())
+  staffId      Int        @unique
+  avgScore     Float
+  stdDeviation Float
+  dataCount    Int
+  lastUpdated  DateTime   @updatedAt
+  
+  staff        Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+model TensionAlertSettings {
+  id               Int        @id @default(autoincrement())
+  storeId          Int        @unique
+  alertThreshold   Float      @default(0.3)
+  consecutiveDays  Int        @default(3)
+  isEnabled        Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  
+  store            Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}

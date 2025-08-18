@@ -1,0 +1,95 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import CompanyLogin from './pages/CompanyLogin';
+import StoreSelect from './pages/StoreSelect';
+import RoleSelect from './pages/RoleSelect';
+import StaffDashboard from './pages/StaffDashboard';
+import ManagerDashboard from './pages/ManagerDashboard';
+import { useState } from 'react';
+
+export interface SessionData {
+  company?: { id: number; name: string };
+  store?: { id: number; name: string };
+  role?: 'staff' | 'manager' | 'owner';
+}
+
+function App() {
+  const [session, setSession] = useState<SessionData>({});
+
+  const updateSession = (data: Partial<SessionData>) => {
+    setSession(prev => ({ ...prev, ...data }));
+  };
+
+  const resetSession = () => {
+    setSession({});
+    localStorage.removeItem('timecardToken');
+  };
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={<CompanyLogin onNext={(company) => updateSession({ company })} />}
+        />
+        <Route
+          path="/store-select"
+          element={
+            session.company ? (
+              <StoreSelect
+                company={session.company}
+                onNext={(store) => updateSession({ store })}
+                onBack={resetSession}
+              />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route
+          path="/role-select"
+          element={
+            session.company && session.store ? (
+              <RoleSelect
+                company={session.company}
+                store={session.store}
+                onNext={(role) => updateSession({ role })}
+                onBack={() => updateSession({ store: undefined })}
+              />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route
+          path="/timecard"
+          element={
+            session.store && session.role === 'staff' ? (
+              <StaffDashboard
+                store={session.store}
+                onBack={() => updateSession({ role: undefined })}
+              />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            session.store && (session.role === 'manager' || session.role === 'owner') ? (
+              <ManagerDashboard
+                store={session.store}
+                role={session.role}
+                onBack={() => updateSession({ role: undefined })}
+              />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;

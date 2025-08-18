@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: teambuilding-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: teambuilding_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_DB: teambuilding_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - teambuilding-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teambuilding_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: teambuilding-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://teambuilding_user:${DB_PASSWORD:-changeme}@postgres:5432/teambuilding_db?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      PORT: 3001
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    networks:
+      - teambuilding-network
+
+  frontend-timecard:
+    build:
+      context: ./timecard-app
+      dockerfile: Dockerfile
+    container_name: teambuilding-timecard
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: http://backend:3001
+    ports:
+      - "4000:80"
+    networks:
+      - teambuilding-network
+
+  frontend-admin:
+    build:
+      context: ./store-admin-app
+      dockerfile: Dockerfile
+    container_name: teambuilding-admin
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: http://backend:3001
+    ports:
+      - "4001:80"
+    networks:
+      - teambuilding-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: teambuilding-nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend-timecard
+      - frontend-admin
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/sites-enabled:/etc/nginx/sites-enabled:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - teambuilding-network
+
+networks:
+  teambuilding-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

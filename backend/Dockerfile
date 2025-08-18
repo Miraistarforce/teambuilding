@@ -1,0 +1,62 @@
+# ビルドステージ
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# 依存関係のインストール
+COPY package*.json ./
+RUN npm ci --only=production
+
+# 開発依存関係のインストール（ビルド用）
+COPY package*.json ./
+RUN npm ci
+
+# Prismaスキーマとソースコードのコピー
+COPY prisma ./prisma
+COPY src ./src
+COPY tsconfig.json ./
+COPY tsconfig.production.json ./
+
+# Prismaクライアントの生成
+RUN npx prisma generate
+
+# TypeScriptのビルド
+RUN npm run build
+
+# 本番ステージ
+FROM node:18-alpine
+
+WORKDIR /app
+
+# 本番依存関係のみコピー
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+
+# ビルド成果物のコピー
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+# Prismaスキーマのコピー（マイグレーション用）
+COPY prisma ./prisma
+
+# 非rootユーザーの作成
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    mkdir -p /app/uploads /app/logs && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+
+# 環境変数
+ENV NODE_ENV=production
+
+# ポートの公開
+EXPOSE 3001
+
+# ヘルスチェック
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/health', (r) => {r.statusCode === 200 ? process.exit(0) : process.exit(1)})"
+
+# アプリケーションの起動
+CMD ["node", "dist/index.js"]
