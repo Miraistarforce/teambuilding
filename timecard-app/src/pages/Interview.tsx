@@ -8,7 +8,7 @@ interface InterviewProps {
   role: 'manager' | 'owner';
 }
 
-export default function Interview({ store, role }: InterviewProps) {
+export default function Interview({ store }: InterviewProps) {
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState('');

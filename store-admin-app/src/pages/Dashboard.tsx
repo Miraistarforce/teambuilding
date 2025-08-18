@@ -1,4 +1,4 @@
-import { Routes, Route, NavLink, useNavigate } from 'react-router-dom';
+import { Routes, Route, NavLink } from 'react-router-dom';
 import Stores from './Stores';
 import Staff from './Staff';
 import Reports from './Reports';
@@ -10,7 +10,6 @@ interface DashboardProps {
 
 export default function Dashboard({ onLogout }: DashboardProps) {
   const [companyName, setCompanyName] = useState('');
-  const navigate = useNavigate();
 
   useEffect(() => {
     const companyData = localStorage.getItem('companyData');

@@ -14,7 +14,7 @@ interface StaffFormProps {
   isLoading?: boolean;
 }
 
-export default function StaffForm({ storeId, onSubmit, onClose, isLoading }: StaffFormProps) {
+export default function StaffForm({ onSubmit, onClose, isLoading }: StaffFormProps) {
   const [name, setName] = useState('');
   const [hourlyWage, setHourlyWage] = useState('');
   const [holidayAllowance, setHolidayAllowance] = useState('0');

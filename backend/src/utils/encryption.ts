@@ -91,13 +91,9 @@ export function maskApiKey(apiKey: string): string {
  */
 export function generateSecureToken(length: number = 32): string {
   const array = new Uint8Array(length);
-  if (typeof window !== 'undefined' && window.crypto) {
-    window.crypto.getRandomValues(array);
-  } else {
-    // Node.js環境
-    const crypto = require('crypto');
-    crypto.randomFillSync(array);
-  }
+  // Node.js環境
+  const crypto = require('crypto');
+  crypto.randomFillSync(array);
   
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }

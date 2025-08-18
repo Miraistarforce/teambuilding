@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { staffApi, timeRecordsApi } from '../lib/api';
 
 interface StaffTimecardProps {
@@ -45,7 +45,6 @@ const cleanupOldData = () => {
 
 export default function StaffTimecard({ store, onBack, isEmbedded = false }: StaffTimecardProps) {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const storageKey = getStorageKey(store.id);
   
   // 初期状態をローカルストレージから読み込み

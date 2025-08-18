@@ -119,7 +119,7 @@ async function checkDatabase(): Promise<CheckResult> {
       message: 'Database is connected',
       details: { 
         responseTime,
-        tableCount: tableCount?.[0]?.count || 'N/A'
+        tableCount: (tableCount as any)?.[0]?.count || 'N/A'
       }
     };
   } catch (error) {

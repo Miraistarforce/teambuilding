@@ -12,11 +12,11 @@ router.post('/admin/login', async (req, res, next) => {
     const { username, password } = req.body;
 
     if (username !== 'admin' || password !== 'admin123') {
-      await logLoginAttempt(username, false, req.ip, req.get('user-agent'), 'Invalid credentials');
+      await logLoginAttempt(username, false, req.ip || 'unknown', req.get('user-agent'), 'Invalid credentials');
       throw new AppError('Invalid credentials', 401);
     }
     
-    await logLoginAttempt(username, true, req.ip, req.get('user-agent'));
+    await logLoginAttempt(username, true, req.ip || 'unknown', req.get('user-agent'));
 
     const token = generateToken({ id: 0, type: 'admin' });
     res.json({ token, type: 'admin' });
@@ -34,11 +34,11 @@ router.post('/company/login', async (req, res, next) => {
     });
 
     if (!company || !await comparePassword(password, company.password)) {
-      await logLoginAttempt(name, false, req.ip, req.get('user-agent'), 'Invalid credentials');
+      await logLoginAttempt(name, false, req.ip || 'unknown', req.get('user-agent'), 'Invalid credentials');
       throw new AppError('Invalid credentials', 401);
     }
     
-    await logLoginAttempt(name, true, req.ip, req.get('user-agent'));
+    await logLoginAttempt(name, true, req.ip || 'unknown', req.get('user-agent'));
 
     if (!company.isActive) {
       throw new AppError('Company is not active', 403);

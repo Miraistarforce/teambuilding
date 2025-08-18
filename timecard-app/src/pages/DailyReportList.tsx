@@ -44,7 +44,7 @@ interface ReportFormat {
   fields: ReportField[];
 }
 
-export default function DailyReportList({ store, role }: DailyReportListProps) {
+export default function DailyReportList({ store }: DailyReportListProps) {
   const [selectedDate, setSelectedDate] = useState<string>('all'); // 初期値を'all'に変更
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
   const [commentingReportId, setCommentingReportId] = useState<number | null>(null);

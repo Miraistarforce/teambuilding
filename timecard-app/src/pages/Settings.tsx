@@ -24,7 +24,7 @@ interface ReportField {
 
 type SettingSection = 'main' | 'report-format' | 'comment-templates' | 'tension-alerts';
 
-export default function Settings({ store, role }: SettingsProps) {
+export default function Settings({ store }: SettingsProps) {
   const [currentSection, setCurrentSection] = useState<SettingSection>('main');
   const [newTemplate, setNewTemplate] = useState('');
   const [reportFields, setReportFields] = useState<ReportField[]>([]);
@@ -55,11 +55,9 @@ export default function Settings({ store, role }: SettingsProps) {
   });
 
   // reportFormatが取得されたらreportFieldsを更新
-  useState(() => {
-    if (reportFormat?.fields) {
-      setReportFields(reportFormat.fields);
-    }
-  }, [reportFormat]);
+  if (reportFormat?.fields && reportFields.length === 0) {
+    setReportFields(reportFormat.fields);
+  }
 
   // テンプレート一覧を取得
   const { data: templates, refetch } = useQuery({
@@ -80,7 +78,7 @@ export default function Settings({ store, role }: SettingsProps) {
   });
   
   // テンションアラート設定を取得
-  const { data: tensionSettings } = useQuery({
+  useQuery({
     queryKey: ['tension-settings', store.id],
     queryFn: async () => {
       const response = await axios.get(

@@ -73,7 +73,7 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
     },
   });
 
-  const allReports = Array.isArray(response) ? response : response?.reports;
+  const allReports = Array.isArray(response) ? response : (response as any)?.reports;
 
   // 日付ごとの日報数を計算
   const reportCountByDate = new Map<string, number>();
@@ -84,7 +84,7 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
 
   // 選択された日付の日報を取得
   const selectedDateReports = selectedDate 
-    ? allReports?.filter(report => {
+    ? allReports?.filter((report: any) => {
         const reportDate = format(new Date(report.date), 'yyyy-MM-dd');
         const selected = format(selectedDate, 'yyyy-MM-dd');
         return reportDate === selected;
@@ -214,7 +214,7 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
             tileContent={tileContent}
             tileClassName={tileClassName}
             locale="ja-JP"
-            formatDay={(locale, date) => format(date, 'd')}
+            formatDay={(_locale, date) => format(date, 'd')}
           />
           <div className="mt-4 text-sm text-text-sub">
             <div className="flex items-center space-x-2">
@@ -235,7 +235,7 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
             
             {selectedDate && selectedDateReports && selectedDateReports.length > 0 ? (
               <div className="space-y-3">
-                {selectedDateReports.map((report) => (
+                {selectedDateReports.map((report: any) => (
                   <div
                     key={report.id}
                     className="bg-background-sub rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md"
@@ -255,7 +255,7 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                         {/* コメントありの表示 */}
                         {report.comments && report.comments.length > 0 && (
                           <span className="text-sm font-medium text-accent-warning">
-                            {report.comments.some(c => c.createdBy === 'owner') 
+                            {report.comments.some((c: any) => c.createdBy === 'owner') 
                               ? 'オーナー' 
                               : '店長'}からコメントあり
                           </span>
@@ -356,7 +356,7 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                         {report.comments && report.comments.length > 0 && (
                           <div className="mt-4 pt-4 border-t">
                             <div className="text-sm font-semibold mb-2">コメント</div>
-                            {report.comments.map(comment => (
+                            {report.comments.map((comment: any) => (
                               <div key={comment.id} className="mb-2">
                                 {comment.hasBonus && (
                                   <div className="mb-2">

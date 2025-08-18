@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { storesApi, reportsApi } from '../lib/api';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function Reports() {
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);

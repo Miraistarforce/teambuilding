@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { staffApi } from '../lib/api';
 import axios from 'axios';
@@ -18,7 +18,7 @@ interface InterviewRecord {
   createdBy: string;
 }
 
-export default function InterviewHistory({ store, role }: InterviewHistoryProps) {
+export default function InterviewHistory({ store }: InterviewHistoryProps) {
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
 

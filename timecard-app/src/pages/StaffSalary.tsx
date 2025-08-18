@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { staffApi, reportsApi } from '../lib/api';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
