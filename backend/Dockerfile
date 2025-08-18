@@ -26,6 +26,9 @@ RUN npm run build
 # 本番ステージ
 FROM node:18-alpine
 
+# OpenSSL 1.1をインストール（Prismaの互換性のため）
+RUN apk add --no-cache openssl1.1-compat
+
 WORKDIR /app
 
 # 本番依存関係のみコピー
