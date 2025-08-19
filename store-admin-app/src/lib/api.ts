@@ -7,13 +7,36 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // クッキーを送信するために必要
 });
 
-api.interceptors.request.use((config) => {
+// CSRFトークンを取得する関数
+const getCSRFToken = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/csrf-token`, {
+      withCredentials: true
+    });
+    return response.data.csrfToken;
+  } catch (error) {
+    console.error('Failed to get CSRF token:', error);
+    return null;
+  }
+};
+
+api.interceptors.request.use(async (config) => {
   const token = localStorage.getItem('storeToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // CSRFトークンを追加（GET以外のリクエストの場合）
+  if (config.method !== 'get') {
+    const csrfToken = await getCSRFToken();
+    if (csrfToken) {
+      config.headers['X-CSRF-Token'] = csrfToken;
+    }
+  }
+  
   return config;
 });
 
