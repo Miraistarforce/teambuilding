@@ -55,7 +55,7 @@ export const csrfTokenEndpoint = (req: Request, res: Response) => {
   res.cookie('sessionId', sessionId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 60 * 60 * 1000 // 1時間
   });
   
