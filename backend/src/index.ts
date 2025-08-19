@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
-import { PrismaClient } from '@prisma/client';
+import prisma from './lib/prisma';
 import authRoutes from './routes/auth';
 import companyRoutes from './routes/companies';
 import storeRoutes from './routes/stores';
@@ -26,7 +26,6 @@ import { csrfTokenEndpoint, conditionalCSRFProtection } from './middlewares/csrf
 dotenv.config();
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 // CORS設定

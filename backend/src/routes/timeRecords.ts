@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 
@@ -11,7 +11,6 @@ const RecordStatus = {
 };
 
 const router = Router();
-const prisma = new PrismaClient();
 
 const getToday = () => {
   const today = new Date();

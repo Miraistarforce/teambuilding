@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { authenticate } from '../middlewares/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // テンプレート一覧を取得
 router.get('/', authenticate, async (req, res) => {

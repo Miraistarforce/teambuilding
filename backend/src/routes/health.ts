@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import os from 'os';
 import { logger } from '../utils/logger';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';

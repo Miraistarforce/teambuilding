@@ -1,11 +1,10 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { authenticate, authorizeStore, AuthRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { validateRequest, commonValidations, validators } from '../middlewares/validation';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.get('/store/:storeId', authenticate, authorizeStore, validateRequest({ params: { storeId: { required: true, type: 'number', min: 1 } } }), async (req, res, next) => {
   try {

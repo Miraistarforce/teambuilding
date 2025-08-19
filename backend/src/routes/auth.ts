@@ -1,11 +1,10 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { comparePassword, generateToken, hashPassword } from '../utils/auth';
 import { AppError } from '../middlewares/errorHandler';
 import { logLoginAttempt, auditMiddleware } from '../utils/auditLogger';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.post('/admin/login', async (req, res, next) => {
   try {

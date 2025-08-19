@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { authenticate } from '../middlewares/auth';
 import { toJSTDateString } from '../utils/dateUtils';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // レポート取得
 router.get('/store/:storeId', authenticate, async (req, res) => {

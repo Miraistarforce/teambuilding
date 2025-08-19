@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middlewares/auth';
 import { analyzeTension as simpleAnalyzeTension, calculateStats, shouldAlert } from '../utils/tensionAnalyzer';
 import { analyzeTension as aiAnalyzeTension, isOpenAIEnabled } from '../services/openaiService';
 import { AppError } from '../middlewares/errorHandler';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // 日報送信時のテンション分析
 router.post('/analyze', authenticate, async (req: AuthRequest, res, next) => {

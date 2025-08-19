@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { authenticate } from '../middlewares/auth';
 import multer from 'multer';
 import path from 'path';
@@ -12,7 +12,6 @@ import {
 } from '../services/openaiService';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // ファイルアップロード設定
 const storage = multer.diskStorage({

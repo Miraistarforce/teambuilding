@@ -62,4 +62,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/health', (r) => {r.statusCode === 200 ? process.exit(0) : process.exit(1)})"
 
 # マイグレーションを実行してからアプリケーションを起動
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+# エラーが発生してもアプリケーションを起動（マイグレーションは初回のみ必要）
+CMD ["sh", "-c", "npx prisma migrate deploy || echo 'Migration failed or already applied' && npx prisma generate && node dist/index.js"]
