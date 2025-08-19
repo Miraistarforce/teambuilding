@@ -31,9 +31,9 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 
-# 本番依存関係のみコピー
+# 本番依存関係のみコピー（Prisma CLIも必要なので含める）
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --only=production && npm install prisma && npm cache clean --force
 
 # ビルド成果物のコピー
 COPY --from=builder /app/dist ./dist
@@ -61,5 +61,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/health', (r) => {r.statusCode === 200 ? process.exit(0) : process.exit(1)})"
 
-# アプリケーションの起動
-CMD ["node", "dist/index.js"]
+# マイグレーションを実行してからアプリケーションを起動
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
