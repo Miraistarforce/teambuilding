@@ -4,6 +4,7 @@ import { staffApi } from '../lib/api';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { API_BASE_URL } from '../config/api';
 
 interface ReportField {
   id: string;
@@ -36,7 +37,7 @@ export default function DailyReport({ store }: DailyReportProps) {
     queryKey: ['report-format', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `http://localhost:3001/api/report-format/${store.id}`,
+        `${API_BASE_URL}/api/report-format/${store.id}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -68,7 +69,7 @@ export default function DailyReport({ store }: DailyReportProps) {
       setIsSubmitting(true);
       
       const response = await axios.post(
-        'http://localhost:3001/api/daily-reports',
+        `${API_BASE_URL}/api/daily-reports`,
         {
           staffId: selectedStaffId,
           storeId: store.id,
@@ -90,7 +91,7 @@ export default function DailyReport({ store }: DailyReportProps) {
       
       try {
         await axios.post(
-          'http://localhost:3001/api/tension/analyze',
+          `${API_BASE_URL}/api/tension/analyze`,
           {
             reportId: response.data.id,
             text: reportText

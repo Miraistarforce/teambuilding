@@ -4,6 +4,7 @@ import { staffApi } from '../lib/api';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { API_BASE_URL } from '../config/api';
 
 interface InterviewHistoryProps {
   store: { id: number; name: string };
@@ -33,7 +34,7 @@ export default function InterviewHistory({ store }: InterviewHistoryProps) {
       if (!selectedStaffId) return [];
       
       const response = await axios.get(
-        `http://localhost:3001/api/interviews/history/${selectedStaffId}`,
+        `${API_BASE_URL}/api/interviews/history/${selectedStaffId}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,

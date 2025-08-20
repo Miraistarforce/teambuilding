@@ -6,6 +6,7 @@ import 'react-calendar/dist/Calendar.css';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import * as HolidayJp from '@holiday-jp/holiday_jp';
+import { API_BASE_URL } from '../config/api';
 
 interface MyDailyReportsProps {
   store: { id: number; name: string };
@@ -55,7 +56,7 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
     queryKey: ['all-staff-reports', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `http://localhost:3001/api/daily-reports/all-staff`,
+        `${API_BASE_URL}/api/daily-reports/all-staff`,
         {
           params: {
             storeId: store.id,

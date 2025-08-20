@@ -4,6 +4,7 @@ import axios from 'axios';
 import { format, subDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import DailyReportComment from '../components/DailyReportComment';
+import { API_BASE_URL } from '../config/api';
 
 interface DailyReportListProps {
   store: { id: number; name: string };
@@ -63,7 +64,7 @@ export default function DailyReportList({ store }: DailyReportListProps) {
       }
       
       const response = await axios.get(
-        `http://localhost:3001/api/daily-reports/list`,
+        `${API_BASE_URL}/api/daily-reports/list`,
         {
           params,
           headers: {
@@ -80,7 +81,7 @@ export default function DailyReportList({ store }: DailyReportListProps) {
     queryKey: ['report-format', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `http://localhost:3001/api/report-format/${store.id}`,
+        `${API_BASE_URL}/api/report-format/${store.id}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -102,7 +103,7 @@ export default function DailyReportList({ store }: DailyReportListProps) {
   const markAsRead = async (reportId: number) => {
     try {
       await axios.patch(
-        `http://localhost:3001/api/daily-reports/${reportId}/read`,
+        `${API_BASE_URL}/api/daily-reports/${reportId}/read`,
         {},
         {
           headers: {

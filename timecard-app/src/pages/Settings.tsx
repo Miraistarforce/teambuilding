@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
 interface SettingsProps {
   store: { id: number; name: string };
@@ -42,7 +43,7 @@ export default function Settings({ store }: SettingsProps) {
     queryKey: ['report-format', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `http://localhost:3001/api/report-format/${store.id}`,
+        `${API_BASE_URL}/api/report-format/${store.id}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -64,7 +65,7 @@ export default function Settings({ store }: SettingsProps) {
     queryKey: ['comment-templates', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `http://localhost:3001/api/comment-templates`,
+        `${API_BASE_URL}/api/comment-templates`,
         {
           params: { storeId: store.id },
           headers: {
@@ -82,7 +83,7 @@ export default function Settings({ store }: SettingsProps) {
     queryKey: ['tension-settings', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `http://localhost:3001/api/tension/alert-settings/${store.id}`,
+        `${API_BASE_URL}/api/tension/alert-settings/${store.id}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -102,7 +103,7 @@ export default function Settings({ store }: SettingsProps) {
   const addMutation = useMutation({
     mutationFn: async () => {
       const response = await axios.post(
-        `http://localhost:3001/api/comment-templates`,
+        `${API_BASE_URL}/api/comment-templates`,
         {
           storeId: store.id,
           template: newTemplate,
@@ -130,7 +131,7 @@ export default function Settings({ store }: SettingsProps) {
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       await axios.delete(
-        `http://localhost:3001/api/comment-templates/${id}`,
+        `${API_BASE_URL}/api/comment-templates/${id}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -166,7 +167,7 @@ export default function Settings({ store }: SettingsProps) {
   const saveFormatMutation = useMutation({
     mutationFn: async () => {
       const response = await axios.post(
-        `http://localhost:3001/api/report-format/${store.id}`,
+        `${API_BASE_URL}/api/report-format/${store.id}`,
         {
           fields: reportFields,
         },
@@ -192,7 +193,7 @@ export default function Settings({ store }: SettingsProps) {
   const saveTensionSettingsMutation = useMutation({
     mutationFn: async () => {
       const response = await axios.put(
-        `http://localhost:3001/api/tension/alert-settings/${store.id}`,
+        `${API_BASE_URL}/api/tension/alert-settings/${store.id}`,
         {
           alertThreshold,
           consecutiveDays,

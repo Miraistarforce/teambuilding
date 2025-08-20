@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { staffApi } from '../lib/api';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
 interface InterviewProps {
   store: { id: number; name: string };
@@ -33,7 +34,7 @@ export default function Interview({ store }: InterviewProps) {
         formData.append('audio', audioFile);
       }
 
-      const response = await axios.post('http://localhost:3001/api/interviews/process', formData, {
+      const response = await axios.post(`${API_BASE_URL}/api/interviews/process`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -58,7 +59,7 @@ export default function Interview({ store }: InterviewProps) {
     mutationFn: async () => {
       setIsProcessing(true);
       const response = await axios.post(
-        'http://localhost:3001/api/interviews/advice',
+        `${API_BASE_URL}/api/interviews/advice`,
         {
           staffId: selectedStaffId,
           storeId: store.id,
