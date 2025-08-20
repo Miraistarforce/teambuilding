@@ -270,6 +270,20 @@ function StaffCard({
     refetchInterval: 60000, // 1分ごとに更新
   });
 
+  // 勤務時間を動的に更新するための状態
+  const [, forceUpdate] = useState({});
+
+  // 1分ごとに勤務時間の表示を更新
+  useEffect(() => {
+    if (timeRecord?.clockIn && !timeRecord?.clockOut) {
+      const interval = setInterval(() => {
+        forceUpdate({});
+      }, 60000); // 1分ごとに更新
+
+      return () => clearInterval(interval);
+    }
+  }, [timeRecord]);
+
   const clockInMutation = useMutation({
     mutationFn: () => timeRecordsApi.clockIn(staffId),
     onSuccess: () => {
