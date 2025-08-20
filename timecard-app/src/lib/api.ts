@@ -9,10 +9,29 @@ const api = axios.create({
   },
 });
 
+// CSRFトークンを保存する変数
+let csrfToken: string | null = null;
+
+// CSRFトークンを取得
+export const fetchCSRFToken = async () => {
+  try {
+    const response = await api.get('/csrf-token');
+    csrfToken = response.data.csrfToken;
+    return csrfToken;
+  } catch (error) {
+    console.error('Failed to fetch CSRF token:', error);
+    return null;
+  }
+};
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('timecardToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  // CSRFトークンを追加
+  if (csrfToken && config.method !== 'get') {
+    config.headers['X-CSRF-Token'] = csrfToken;
   }
   return config;
 });

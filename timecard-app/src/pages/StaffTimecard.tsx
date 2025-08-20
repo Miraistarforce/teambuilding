@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { staffApi, timeRecordsApi } from '../lib/api';
+import { staffApi, timeRecordsApi, fetchCSRFToken } from '../lib/api';
 
 interface StaffTimecardProps {
   store: { id: number; name: string };
@@ -60,6 +60,11 @@ export default function StaffTimecard({ store, onBack, isEmbedded = false }: Sta
   });
 
   const [toast, setToast] = useState<string | null>(null);
+
+  // CSRFトークンを取得
+  useEffect(() => {
+    fetchCSRFToken();
+  }, []);
 
   // スタッフリストが変更されたらローカルストレージに保存
   useEffect(() => {
