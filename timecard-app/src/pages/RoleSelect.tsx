@@ -16,9 +16,20 @@ export default function RoleSelect({ company, store, onNext, onBack }: RoleSelec
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleStaffSelect = () => {
-    onNext('staff');
-    navigate('/timecard');
+  const handleStaffSelect = async () => {
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const response = await authApi.storeLogin(company.name, store.name, 'staff123', 'staff');
+      localStorage.setItem('timecardToken', response.token);
+      onNext('staff');
+      navigate('/timecard');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'ログインに失敗しました');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleRoleWithPassword = async (role: 'manager' | 'owner') => {
@@ -56,7 +67,8 @@ export default function RoleSelect({ company, store, onNext, onBack }: RoleSelec
         <div className="space-y-3">
           <button
             onClick={handleStaffSelect}
-            className="w-full p-6 border rounded-lg hover:bg-background-sub transition-colors"
+            disabled={isLoading}
+            className="w-full p-6 border rounded-lg hover:bg-background-sub transition-colors disabled:opacity-50"
           >
             <div className="text-xl font-medium mb-2">スタッフ</div>
             <div className="text-sm text-text-sub">出退勤の打刻を行います</div>
