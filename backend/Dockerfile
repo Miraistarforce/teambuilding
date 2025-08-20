@@ -3,11 +3,7 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# 依存関係のインストール
-COPY package*.json ./
-RUN npm ci --only=production
-
-# 開発依存関係のインストール（ビルド用）
+# 依存関係のインストール（ビルド用に全部）
 COPY package*.json ./
 RUN npm ci
 
