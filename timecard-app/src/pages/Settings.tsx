@@ -43,7 +43,7 @@ export default function Settings({ store }: SettingsProps) {
     queryKey: ['report-format', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `${API_BASE_URL}/api/report-format/${store.id}`,
+        `${API_BASE_URL}/report-format/${store.id}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -65,7 +65,7 @@ export default function Settings({ store }: SettingsProps) {
     queryKey: ['comment-templates', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `${API_BASE_URL}/api/comment-templates`,
+        `${API_BASE_URL}/comment-templates`,
         {
           params: { storeId: store.id },
           headers: {
@@ -83,7 +83,7 @@ export default function Settings({ store }: SettingsProps) {
     queryKey: ['tension-settings', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `${API_BASE_URL}/api/tension/alert-settings/${store.id}`,
+        `${API_BASE_URL}/tension/alert-settings/${store.id}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -103,7 +103,7 @@ export default function Settings({ store }: SettingsProps) {
   const addMutation = useMutation({
     mutationFn: async () => {
       const response = await axios.post(
-        `${API_BASE_URL}/api/comment-templates`,
+        `${API_BASE_URL}/comment-templates`,
         {
           storeId: store.id,
           template: newTemplate,
@@ -131,7 +131,7 @@ export default function Settings({ store }: SettingsProps) {
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       await axios.delete(
-        `${API_BASE_URL}/api/comment-templates/${id}`,
+        `${API_BASE_URL}/comment-templates/${id}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -167,7 +167,7 @@ export default function Settings({ store }: SettingsProps) {
   const saveFormatMutation = useMutation({
     mutationFn: async () => {
       const response = await axios.post(
-        `${API_BASE_URL}/api/report-format/${store.id}`,
+        `${API_BASE_URL}/report-format/${store.id}`,
         {
           fields: reportFields,
         },
@@ -193,7 +193,7 @@ export default function Settings({ store }: SettingsProps) {
   const saveTensionSettingsMutation = useMutation({
     mutationFn: async () => {
       const response = await axios.put(
-        `${API_BASE_URL}/api/tension/alert-settings/${store.id}`,
+        `${API_BASE_URL}/tension/alert-settings/${store.id}`,
         {
           alertThreshold,
           consecutiveDays,

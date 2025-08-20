@@ -23,7 +23,7 @@ export default function DailyReportComment({ reportId, storeId, onClose, onSucce
     queryKey: ['comment-templates', storeId],
     queryFn: async () => {
       const response = await axios.get(
-        `${API_BASE_URL}/api/comment-templates`,
+        `${API_BASE_URL}/comment-templates`,
         {
           params: { storeId },
           headers: {
@@ -39,7 +39,7 @@ export default function DailyReportComment({ reportId, storeId, onClose, onSucce
   const submitMutation = useMutation({
     mutationFn: async () => {
       const response = await axios.post(
-        `${API_BASE_URL}/api/daily-reports/${reportId}/comment`,
+        `${API_BASE_URL}/daily-reports/${reportId}/comment`,
         {
           emoji: selectedEmoji,
           comment,

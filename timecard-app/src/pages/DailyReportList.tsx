@@ -64,7 +64,7 @@ export default function DailyReportList({ store }: DailyReportListProps) {
       }
       
       const response = await axios.get(
-        `${API_BASE_URL}/api/daily-reports/list`,
+        `${API_BASE_URL}/daily-reports/list`,
         {
           params,
           headers: {
@@ -81,7 +81,7 @@ export default function DailyReportList({ store }: DailyReportListProps) {
     queryKey: ['report-format', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `${API_BASE_URL}/api/report-format/${store.id}`,
+        `${API_BASE_URL}/report-format/${store.id}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -103,7 +103,7 @@ export default function DailyReportList({ store }: DailyReportListProps) {
   const markAsRead = async (reportId: number) => {
     try {
       await axios.patch(
-        `${API_BASE_URL}/api/daily-reports/${reportId}/read`,
+        `${API_BASE_URL}/daily-reports/${reportId}/read`,
         {},
         {
           headers: {

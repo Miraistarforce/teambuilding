@@ -56,7 +56,7 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
     queryKey: ['all-staff-reports', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `${API_BASE_URL}/api/daily-reports/all-staff`,
+        `${API_BASE_URL}/daily-reports/all-staff`,
         {
           params: {
             storeId: store.id,

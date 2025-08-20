@@ -34,7 +34,7 @@ export default function InterviewHistory({ store }: InterviewHistoryProps) {
       if (!selectedStaffId) return [];
       
       const response = await axios.get(
-        `${API_BASE_URL}/api/interviews/history/${selectedStaffId}`,
+        `${API_BASE_URL}/interviews/history/${selectedStaffId}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,

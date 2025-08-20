@@ -24,28 +24,47 @@ router.post('/', authenticate, async (req, res) => {
       },
     });
 
+    let report;
     if (existingReport) {
-      return res.status(409).json({ error: '本日の日報は既に提出されています' });
-    }
-
-    // 日報を作成
-    const report = await prisma.dailyReport.create({
-      data: {
-        staffId: parseInt(staffId),
-        storeId: parseInt(storeId),
-        date: reportDate,
-        content,
-        formData: formData ? JSON.stringify(formData) : null,
-        isRead: false,
-      },
-      include: {
-        staff: {
-          select: {
-            name: true,
+      // 既存の日報を更新
+      report = await prisma.dailyReport.update({
+        where: {
+          id: existingReport.id,
+        },
+        data: {
+          content,
+          formData: formData ? JSON.stringify(formData) : null,
+          isRead: false,
+          updatedAt: new Date(),
+        },
+        include: {
+          staff: {
+            select: {
+              name: true,
+            },
           },
         },
-      },
-    });
+      });
+    } else {
+      // 新規作成
+      report = await prisma.dailyReport.create({
+        data: {
+          staffId: parseInt(staffId),
+          storeId: parseInt(storeId),
+          date: reportDate,
+          content,
+          formData: formData ? JSON.stringify(formData) : null,
+          isRead: false,
+        },
+        include: {
+          staff: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+    }
 
     res.json({
       id: report.id,

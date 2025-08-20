@@ -34,7 +34,7 @@ export default function Interview({ store }: InterviewProps) {
         formData.append('audio', audioFile);
       }
 
-      const response = await axios.post(`${API_BASE_URL}/api/interviews/process`, formData, {
+      const response = await axios.post(`${API_BASE_URL}/interviews/process`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -59,7 +59,7 @@ export default function Interview({ store }: InterviewProps) {
     mutationFn: async () => {
       setIsProcessing(true);
       const response = await axios.post(
-        `${API_BASE_URL}/api/interviews/advice`,
+        `${API_BASE_URL}/interviews/advice`,
         {
           staffId: selectedStaffId,
           storeId: store.id,

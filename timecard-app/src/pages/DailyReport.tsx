@@ -91,7 +91,7 @@ export default function DailyReport({ store }: DailyReportProps) {
       
       try {
         await axios.post(
-          `${API_BASE_URL}/api/tension/analyze`,
+          `${API_BASE_URL}/tension/analyze`,
           {
             reportId: response.data.id,
             text: reportText

@@ -49,7 +49,7 @@ export default function StaffManagement({ store }: StaffManagementProps) {
     queryKey: ['tension-alerts', store.id],
     queryFn: async () => {
       const token = localStorage.getItem('timecardToken');
-      const response = await axios.get(`${API_BASE_URL}/api/tension/store/${store.id}/alerts`, {
+      const response = await axios.get(`${API_BASE_URL}/tension/store/${store.id}/alerts`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return response.data;
@@ -62,7 +62,7 @@ export default function StaffManagement({ store }: StaffManagementProps) {
     queryKey: ['staff', store.id],
     queryFn: async () => {
       const token = localStorage.getItem('timecardToken');
-      const response = await axios.get(`${API_BASE_URL}/api/staff/list/${store.id}`, {
+      const response = await axios.get(`${API_BASE_URL}/staff/list/${store.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return response.data;
@@ -76,15 +76,15 @@ export default function StaffManagement({ store }: StaffManagementProps) {
     try {
       const [staffResponse, statsResponse, interviewResponse] = await Promise.all([
         // スタッフ基本情報
-        axios.get(`${API_BASE_URL}/api/staff/${staffId}`, {
+        axios.get(`${API_BASE_URL}/staff/${staffId}`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         // 勤怠統計
-        axios.get(`${API_BASE_URL}/api/staff/${staffId}/stats`, {
+        axios.get(`${API_BASE_URL}/staff/${staffId}/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         // 最新の面談
-        axios.get(`${API_BASE_URL}/api/interviews/staff/${staffId}/latest`, {
+        axios.get(`${API_BASE_URL}/interviews/staff/${staffId}/latest`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: null })) // エラー時はnullを返す
       ]);
@@ -105,7 +105,7 @@ export default function StaffManagement({ store }: StaffManagementProps) {
     mutationFn: async ({ staffId, mbtiType }: { staffId: number; mbtiType: string }) => {
       const token = localStorage.getItem('timecardToken');
       return axios.put(
-        `${API_BASE_URL}/api/staff/${staffId}`,
+        `${API_BASE_URL}/staff/${staffId}`,
         { mbtiType },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -481,7 +481,7 @@ export default function StaffManagement({ store }: StaffManagementProps) {
                 try {
                   const token = localStorage.getItem('timecardToken');
                   const response = await axios.post(
-                    `${API_BASE_URL}/api/ai-consult/mbti-advice`,
+                    `${API_BASE_URL}/ai-consult/mbti-advice`,
                     {
                       mbtiType: selectedStaff.mbtiType,
                       consultText,
