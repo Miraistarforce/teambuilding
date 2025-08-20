@@ -13,9 +13,14 @@ const RecordStatus = {
 const router = Router();
 
 const getToday = () => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return today;
+  const now = new Date();
+  // 午前4時を基準に日付を判定
+  if (now.getHours() < 4) {
+    // 午前0時〜4時の場合は前日として扱う
+    now.setDate(now.getDate() - 1);
+  }
+  now.setHours(0, 0, 0, 0);
+  return now;
 };
 
 router.post('/clock-in', async (req, res, next) => {
