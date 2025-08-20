@@ -13,7 +13,9 @@ const api = axios.create({
 // CSRFトークンを取得する関数
 const getCSRFToken = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/csrf-token`, {
+    // API_BASE_URLには既に/apiが含まれているので、ベースURLを取得
+    const baseUrl = API_BASE_URL.replace('/api', '');
+    const response = await axios.get(`${baseUrl}/api/csrf-token`, {
       withCredentials: true
     });
     return response.data.csrfToken;
