@@ -22,9 +22,7 @@ export default function RoleSelect({ company, store, onNext, onBack }: RoleSelec
 
     try {
       const response = await authApi.storeLogin(company.name, store.name, 'staff123', 'staff');
-      console.log('Staff login response:', response);
       localStorage.setItem('timecardToken', response.token);
-      console.log('Token saved to localStorage:', response.token);
       onNext('staff');
       navigate('/timecard');
     } catch (err: any) {
