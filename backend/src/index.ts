@@ -110,6 +110,7 @@ app.use('/api/time-records', timeRecordRoutes);
 // 日報関連ルートもCSRF保護なし
 app.use('/api/daily-reports', dailyReportsRoutes);
 app.use('/api/report-format', reportFormatRoutes);
+app.use('/api/tension', tensionRoutes);
 
 // CSRF保護を適用（上記以外のルート）
 app.use('/api', conditionalCSRFProtection);
@@ -120,7 +121,6 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/interviews', interviewsRoutes);
 app.use('/api/comment-templates', commentTemplatesRoutes);
-app.use('/api/tension', tensionRoutes);
 app.use('/api/ai-consult', aiConsultRoutes);
 
 // 404ハンドラー
