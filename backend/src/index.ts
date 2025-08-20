@@ -101,10 +101,12 @@ app.use('/', healthRoutes);
 // CSRFトークンエンドポイント
 app.get('/api/csrf-token', csrfTokenEndpoint);
 
-// CSRF保護を適用
+// 認証ルートは先に登録（CSRF保護なし）
+app.use('/api/auth', authRoutes);
+
+// CSRF保護を適用（認証以外のルート）
 app.use('/api', conditionalCSRFProtection);
 
-app.use('/api/auth', authRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/staff', staffRoutes);
