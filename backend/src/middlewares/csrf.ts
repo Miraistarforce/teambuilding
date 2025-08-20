@@ -70,7 +70,13 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
   }
   
   // 特定のエンドポイントはスキップ（Webhook等）
-  const skipPaths = ['/api/webhooks', '/api/health'];
+  const skipPaths = [
+    '/api/webhooks', 
+    '/api/health',
+    '/api/auth/company/login',
+    '/api/auth/store/login',
+    '/api/auth/login'
+  ];
   if (skipPaths.some(path => req.path.startsWith(path))) {
     return next();
   }
