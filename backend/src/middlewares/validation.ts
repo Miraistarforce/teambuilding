@@ -185,8 +185,8 @@ export const commonValidations = {
   store: {
     body: {
       name: { required: true, type: 'string', minLength: 1, maxLength: 100 },
-      managerPassword: { type: 'string', custom: validators.isStrongPassword },
-      ownerPassword: { type: 'string', custom: validators.isStrongPassword }
+      managerPassword: { required: true, type: 'string', minLength: 4, maxLength: 100 },
+      ownerPassword: { required: true, type: 'string', minLength: 4, maxLength: 100 }
     }
   },
 
