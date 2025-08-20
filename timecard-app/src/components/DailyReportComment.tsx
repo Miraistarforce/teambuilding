@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
 interface DailyReportCommentProps {
   reportId: number;
@@ -22,7 +23,7 @@ export default function DailyReportComment({ reportId, storeId, onClose, onSucce
     queryKey: ['comment-templates', storeId],
     queryFn: async () => {
       const response = await axios.get(
-        `http://localhost:3001/api/comment-templates`,
+        `${API_BASE_URL}/api/comment-templates`,
         {
           params: { storeId },
           headers: {
@@ -38,7 +39,7 @@ export default function DailyReportComment({ reportId, storeId, onClose, onSucce
   const submitMutation = useMutation({
     mutationFn: async () => {
       const response = await axios.post(
-        `http://localhost:3001/api/daily-reports/${reportId}/comment`,
+        `${API_BASE_URL}/api/daily-reports/${reportId}/comment`,
         {
           emoji: selectedEmoji,
           comment,

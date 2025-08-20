@@ -4,6 +4,7 @@ import axios from 'axios';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { MBTI_TYPES, getMBTIProfile, type MBTIType } from '../utils/mbtiGuide';
+import { API_BASE_URL } from '../config/api';
 
 interface StaffManagementProps {
   store: { id: number; name: string };
