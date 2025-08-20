@@ -107,7 +107,11 @@ app.use('/api/auth', authRoutes);
 // 出退勤記録ルートもCSRF保護なし
 app.use('/api/time-records', timeRecordRoutes);
 
-// CSRF保護を適用（認証と出退勤記録以外のルート）
+// 日報関連ルートもCSRF保護なし
+app.use('/api/daily-reports', dailyReportsRoutes);
+app.use('/api/report-format', reportFormatRoutes);
+
+// CSRF保護を適用（上記以外のルート）
 app.use('/api', conditionalCSRFProtection);
 
 app.use('/api/companies', companyRoutes);
@@ -115,9 +119,7 @@ app.use('/api/stores', storeRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/interviews', interviewsRoutes);
-app.use('/api/daily-reports', dailyReportsRoutes);
 app.use('/api/comment-templates', commentTemplatesRoutes);
-app.use('/api/report-format', reportFormatRoutes);
 app.use('/api/tension', tensionRoutes);
 app.use('/api/ai-consult', aiConsultRoutes);
 

@@ -37,7 +37,7 @@ export default function DailyReport({ store }: DailyReportProps) {
     queryKey: ['report-format', store.id],
     queryFn: async () => {
       const response = await axios.get(
-        `${API_BASE_URL}/api/report-format/${store.id}`,
+        `${API_BASE_URL}/report-format/${store.id}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
@@ -69,7 +69,7 @@ export default function DailyReport({ store }: DailyReportProps) {
       setIsSubmitting(true);
       
       const response = await axios.post(
-        `${API_BASE_URL}/api/daily-reports`,
+        `${API_BASE_URL}/daily-reports`,
         {
           staffId: selectedStaffId,
           storeId: store.id,
