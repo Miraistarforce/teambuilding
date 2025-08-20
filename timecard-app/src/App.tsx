@@ -4,7 +4,7 @@ import StoreSelect from './pages/StoreSelect';
 import RoleSelect from './pages/RoleSelect';
 import StaffDashboard from './pages/StaffDashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export interface SessionData {
   company?: { id: number; name: string };
@@ -13,7 +13,18 @@ export interface SessionData {
 }
 
 function App() {
-  const [session, setSession] = useState<SessionData>({});
+  // localStorageから初期値を復元
+  const [session, setSession] = useState<SessionData>(() => {
+    const saved = localStorage.getItem('timecardSession');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // セッションが更新されたらlocalStorageにも保存
+  useEffect(() => {
+    if (Object.keys(session).length > 0) {
+      localStorage.setItem('timecardSession', JSON.stringify(session));
+    }
+  }, [session]);
 
   const updateSession = (data: Partial<SessionData>) => {
     setSession(prev => ({ ...prev, ...data }));
@@ -22,6 +33,7 @@ function App() {
   const resetSession = () => {
     setSession({});
     localStorage.removeItem('timecardToken');
+    localStorage.removeItem('timecardSession');
   };
 
   return (
