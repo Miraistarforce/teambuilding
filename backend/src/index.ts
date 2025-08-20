@@ -28,6 +28,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// プロキシ信頼設定（Renderなどのプラットフォーム用）
+app.set('trust proxy', 1);
+
 // CORS設定
 const corsOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
