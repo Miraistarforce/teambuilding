@@ -22,7 +22,9 @@ export default function RoleSelect({ company, store, onNext, onBack }: RoleSelec
 
     try {
       const response = await authApi.storeLogin(company.name, store.name, 'staff123', 'staff');
+      console.log('Staff login response:', response);
       localStorage.setItem('timecardToken', response.token);
+      console.log('Token saved to localStorage:', response.token);
       onNext('staff');
       navigate('/timecard');
     } catch (err: any) {
@@ -63,6 +65,12 @@ export default function RoleSelect({ company, store, onNext, onBack }: RoleSelec
 
         <h2 className="text-2xl font-semibold mb-2">役割選択</h2>
         <p className="text-text-sub mb-6">{store.name}</p>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded mb-4">
+            {error}
+          </div>
+        )}
 
         <div className="space-y-3">
           <button
