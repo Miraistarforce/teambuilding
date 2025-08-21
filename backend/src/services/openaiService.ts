@@ -1,5 +1,11 @@
 import OpenAI from 'openai';
 import { logger } from '../utils/logger';
+import { File } from 'node:buffer';
+
+// Node.js 18以下でのFile対応
+if (!globalThis.File) {
+  globalThis.File = File as any;
+}
 
 // OpenAI APIクライアントの初期化
 const openai = new OpenAI({
@@ -216,10 +222,19 @@ ${mbtiType}タイプの方は、それぞれ独自の特性を持っています
 export async function transcribeAudio(audioFilePath: string): Promise<string> {
   try {
     const fs = require('fs');
-    const audioFile = fs.createReadStream(audioFilePath);
+    const path = require('path');
+    
+    // ファイルを読み込んでFileオブジェクトを作成
+    const audioBuffer = fs.readFileSync(audioFilePath);
+    const fileName = path.basename(audioFilePath);
+    
+    // Fileオブジェクトとして作成
+    const audioFile = new File([audioBuffer], fileName, { 
+      type: 'audio/mpeg' 
+    });
     
     const response = await openai.audio.transcriptions.create({
-      file: audioFile,
+      file: audioFile as any,
       model: 'whisper-1',
       language: 'ja'
     });
