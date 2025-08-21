@@ -11,3 +11,50 @@
     @apply bg-background-main text-text-main;
   }
 }
+
+/* キラキラアニメーション */
+@keyframes sparkle {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.sparkle-card {
+  position: relative;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 215, 0, 0.1) 0%,
+    rgba(255, 255, 255, 0.3) 25%,
+    rgba(255, 215, 0, 0.1) 50%,
+    rgba(255, 255, 255, 0.3) 75%,
+    rgba(255, 215, 0, 0.1) 100%
+  );
+  background-size: 200% 100%;
+  animation: sparkle 3s ease-in-out infinite;
+}
+
+.sparkle-card::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(
+    45deg,
+    #FFD700,
+    #FFA500,
+    #FFD700,
+    #FFA500
+  );
+  border-radius: 0.5rem;
+  opacity: 0.5;
+  z-index: -1;
+  animation: sparkle 2s linear infinite;
+}

@@ -239,7 +239,11 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                 {selectedDateReports.map((report: any) => (
                   <div
                     key={report.id}
-                    className="bg-background-sub rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md"
+                    className={`rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md ${
+                      report.comments && report.comments.length > 0 
+                        ? 'sparkle-card' 
+                        : 'bg-background-sub'
+                    }`}
                   >
                     {/* カードヘッダー */}
                     <div
@@ -255,8 +259,8 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                         </span>
                         {/* コメントありの表示 */}
                         {report.comments && report.comments.length > 0 && (
-                          <span className="text-sm font-medium text-accent-warning">
-                            {report.comments.some((c: any) => c.createdBy === 'owner') 
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-full animate-pulse">
+                            ✨ {report.comments.some((c: any) => c.createdBy === 'owner') 
                               ? 'オーナー' 
                               : '店長'}からコメントあり
                           </span>
