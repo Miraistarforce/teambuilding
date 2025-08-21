@@ -131,14 +131,23 @@ router.post('/process', authenticate, upload.single('audio'), async (req, res) =
       
       // OpenAI Whisper APIで音声をテキスト化
       if (isOpenAIEnabled() && !textContent) {
+        console.log('Attempting audio transcription with OpenAI Whisper...');
         const filePath = path.join(__dirname, '../../uploads/interviews', audioFile.filename);
-        const transcribedText = await transcribeAudio(filePath);
-        if (transcribedText) {
-          textContent = transcribedText;
-        } else {
+        try {
+          const transcribedText = await transcribeAudio(filePath);
+          if (transcribedText) {
+            console.log('Audio transcribed successfully:', transcribedText.substring(0, 100) + '...');
+            textContent = transcribedText;
+          } else {
+            console.log('Transcription returned empty text');
+            textContent = '音声ファイルがアップロードされました。';
+          }
+        } catch (error) {
+          console.error('Audio transcription error:', error);
           textContent = '音声ファイルがアップロードされました。';
         }
       } else if (!textContent) {
+        console.log('No OpenAI API or text provided with audio');
         textContent = '音声ファイルがアップロードされました。';
       }
     }
@@ -146,9 +155,17 @@ router.post('/process', authenticate, upload.single('audio'), async (req, res) =
     // AI要約を生成（OpenAI APIが有効な場合は使用）
     let summaryArray: string[];
     if (isOpenAIEnabled()) {
-      const aiSummary = await generateInterviewSummary(textContent);
-      summaryArray = aiSummary.summary;
+      console.log('OpenAI API is enabled, generating AI summary...');
+      try {
+        const aiSummary = await generateInterviewSummary(textContent);
+        summaryArray = aiSummary.summary;
+        console.log('AI summary generated:', summaryArray);
+      } catch (error) {
+        console.error('AI summary generation failed:', error);
+        summaryArray = generateSummary(textContent);
+      }
     } else {
+      console.log('OpenAI API is not enabled, using fallback summary');
       summaryArray = generateSummary(textContent);
     }
     const summaryText = JSON.stringify(summaryArray);
