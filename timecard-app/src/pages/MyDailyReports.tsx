@@ -250,40 +250,33 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                       className="px-4 py-3 cursor-pointer flex items-center justify-between hover:bg-background-main/30 transition-colors"
                       onClick={() => setExpandedCard(expandedCard === report.id ? null : report.id)}
                     >
-                      <div className="flex items-center space-x-3">
-                        <span className="font-medium text-accent-primary">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <span className="font-medium text-accent-primary whitespace-nowrap">
                           {report.staff?.name}
                         </span>
-                        <span className="text-sm text-text-sub">
+                        <span className="text-sm text-text-sub whitespace-nowrap">
                           {formatTime(report.createdAt)}
                         </span>
                         {/* コメントありの表示 */}
                         {report.comments && report.comments.length > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-full animate-pulse">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-full animate-pulse whitespace-nowrap">
                             ✨ {report.comments.some((c: any) => c.createdBy === 'owner') 
                               ? 'オーナー' 
                               : '店長'}からコメントあり
                           </span>
                         )}
                         {!expandedCard || expandedCard !== report.id ? (
-                          <span className="text-sm text-text-sub">
+                          <span className="text-sm text-text-sub truncate flex-1">
                             {report.formData && reportFormat ? (
-                              <>
-                                {reportFormat.fields.slice(0, 2).map((field, idx) => (
-                                  <span key={field.id}>
-                                    {idx > 0 && ', '}
-                                    {field.title}: 
-                                    {field.type === 'rating' 
-                                      ? `★${report.formData[field.id]}` 
-                                      : report.formData[field.id]?.substring(0, 15)}
-                                  </span>
-                                ))}
-                              </>
+                              reportFormat.fields.slice(0, 2).map((field) => 
+                                `${field.title}: ${
+                                  field.type === 'rating' 
+                                    ? `★${report.formData[field.id]}` 
+                                    : report.formData[field.id]?.substring(0, 20)
+                                }`
+                              ).join(', ')
                             ) : (
-                              <>
-                                {report.content.substring(0, 30)}
-                                {report.content.length > 30 && '...'}
-                              </>
+                              report.content
                             )}
                           </span>
                         ) : null}
