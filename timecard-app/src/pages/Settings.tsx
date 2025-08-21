@@ -217,6 +217,8 @@ export default function Settings({ store }: SettingsProps) {
     },
   });
 
+  const [newFieldRequired, setNewFieldRequired] = useState(false);
+
   const addReportField = () => {
     if (!newFieldTitle.trim()) {
       alert('項目タイトルを入力してください');
@@ -229,7 +231,7 @@ export default function Settings({ store }: SettingsProps) {
       title: newFieldTitle,
       ...(newFieldType === 'text' && { placeholder: newFieldPlaceholder }),
       ...(newFieldType === 'rating' && { maxRating: newFieldMaxRating }),
-      required: true,
+      required: newFieldRequired,
     };
 
     setReportFields([...reportFields, newField]);
@@ -237,6 +239,7 @@ export default function Settings({ store }: SettingsProps) {
     setNewFieldPlaceholder('');
     setNewFieldType('text');
     setNewFieldMaxRating(5);
+    setNewFieldRequired(false);
   };
 
   const removeReportField = (id: string) => {
@@ -248,6 +251,12 @@ export default function Settings({ store }: SettingsProps) {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newFields[index], newFields[targetIndex]] = [newFields[targetIndex], newFields[index]];
     setReportFields(newFields);
+  };
+
+  const toggleFieldRequired = (id: string) => {
+    setReportFields(reportFields.map(field => 
+      field.id === id ? { ...field, required: !field.required } : field
+    ));
   };
 
   // メイン設定画面
@@ -344,6 +353,16 @@ export default function Settings({ store }: SettingsProps) {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleFieldRequired(field.id)}
+                        className={`px-3 py-1 text-xs rounded-full font-medium ${
+                          field.required 
+                            ? 'bg-accent-error text-white' 
+                            : 'bg-gray-200 text-gray-600'
+                        }`}
+                      >
+                        {field.required ? '必須' : '任意'}
+                      </button>
                       {index > 0 && (
                         <button
                           onClick={() => moveField(index, 'up')}
@@ -428,6 +447,18 @@ export default function Settings({ store }: SettingsProps) {
                   </select>
                 </div>
               )}
+
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={newFieldRequired}
+                    onChange={(e) => setNewFieldRequired(e.target.checked)}
+                    className="w-4 h-4 text-accent-primary rounded"
+                  />
+                  <span className="text-sm">必須項目にする</span>
+                </label>
+              </div>
               
               <button
                 onClick={addReportField}
