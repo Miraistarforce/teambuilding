@@ -128,8 +128,10 @@ router.post('/with-images', authenticate, upload.any(), async (req, res) => {
         const fieldMatch = file.fieldname.match(/^image_(.+)$/);
         if (fieldMatch) {
           const fieldId = fieldMatch[1];
-          // Store the URL path for the image
-          formDataObj[fieldId] = `/uploads/daily-reports/${file.filename}`;
+          // Store the URL path for the image (replacing the placeholder)
+          if (formDataObj[fieldId] === 'pending_upload') {
+            formDataObj[fieldId] = `/uploads/daily-reports/${file.filename}`;
+          }
         }
       });
     }

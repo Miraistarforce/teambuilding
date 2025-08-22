@@ -83,9 +83,13 @@ export default function DailyReport({ store }: DailyReportProps) {
         
         // Add text data
         const textData = { ...formData };
-        // Add image filenames to formData
+        // Store image URLs separately and keep comments
         Object.keys(imageFiles).forEach(fieldId => {
-          textData[fieldId] = `image_${fieldId}_${Date.now()}.jpg`;
+          // Keep the comment if it exists
+          const comment = textData[fieldId] || '';
+          // Image URL will be set by backend
+          textData[`${fieldId}_comment`] = comment;
+          textData[fieldId] = 'pending_upload'; // Placeholder until backend sets the actual URL
         });
         
         formDataPayload.append('content', useNewFormat ? JSON.stringify(textData) : reportContent);
@@ -325,11 +329,6 @@ export default function DailyReport({ store }: DailyReportProps) {
                   renderStarRating(field)
                 ) : field.type === 'image' ? (
                   <div className="space-y-2">
-                    {formData[field.id] && (
-                      <div className="text-sm text-text-sub">
-                        コメント: {formData[field.id]}
-                      </div>
-                    )}
                     <input
                       type="text"
                       value={formData[field.id] || ''}

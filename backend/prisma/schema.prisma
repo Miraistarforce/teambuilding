@@ -25,6 +25,7 @@ model Store {
   name            String
   managerPassword String
   ownerPassword   String
+  bonusEnabled    Boolean  @default(true)  // 賞与プレゼント機能の有効/無効
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

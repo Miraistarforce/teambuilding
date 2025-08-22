@@ -17,6 +17,24 @@ export default function DailyReportComment({ reportId, storeId, onClose, onSucce
   const [comment, setComment] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [hasBonus, setHasBonus] = useState(false);
+  const [bonusEnabled, setBonusEnabled] = useState(true);
+
+  // 賞与設定を取得
+  useQuery({
+    queryKey: ['bonus-setting', storeId],
+    queryFn: async () => {
+      const response = await axios.get(
+        `${API_BASE_URL}/stores/${storeId}/bonus-setting`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
+          },
+        }
+      );
+      setBonusEnabled(response.data.bonusEnabled ?? true);
+      return response.data;
+    },
+  });
 
   // テンプレート取得
   const { data: templates } = useQuery({
@@ -155,17 +173,19 @@ export default function DailyReportComment({ reportId, storeId, onClose, onSucce
           <button
             onClick={handleSubmit}
             disabled={submitMutation.isPending}
-            className="flex-1 bg-accent-primary text-white py-3 px-4 rounded-lg hover:opacity-90 transition-opacity font-medium disabled:opacity-50"
+            className={`${bonusEnabled ? 'flex-1' : 'w-full'} bg-accent-primary text-white py-3 px-4 rounded-lg hover:opacity-90 transition-opacity font-medium disabled:opacity-50`}
           >
             {submitMutation.isPending ? '送信中...' : 'コメントを送信'}
           </button>
-          <button
-            onClick={handleBonus}
-            disabled={submitMutation.isPending}
-            className="flex-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white py-3 px-4 rounded-lg hover:opacity-90 transition-opacity font-medium disabled:opacity-50 shadow-lg"
-          >
-            {submitMutation.isPending ? '送信中...' : '🎁 賞与をプレゼント'}
-          </button>
+          {bonusEnabled && (
+            <button
+              onClick={handleBonus}
+              disabled={submitMutation.isPending}
+              className="flex-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white py-3 px-4 rounded-lg hover:opacity-90 transition-opacity font-medium disabled:opacity-50 shadow-lg"
+            >
+              {submitMutation.isPending ? '送信中...' : '🎁 賞与をプレゼント'}
+            </button>
+          )}
         </div>
       </div>
     </div>

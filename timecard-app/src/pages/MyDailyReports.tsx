@@ -35,7 +35,7 @@ interface Report {
 
 interface ReportField {
   id: string;
-  type: 'text' | 'rating';
+  type: 'text' | 'rating' | 'image';
   title: string;
   placeholder?: string;
   required?: boolean;
@@ -50,6 +50,7 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
   const [reportFormat, setReportFormat] = useState<ReportFormat | null>(null);
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
 
   // 全スタッフの日報を取得
   const { data: response } = useQuery({
@@ -259,11 +260,17 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                         </span>
                         {/* コメントありの表示 */}
                         {report.comments && report.comments.length > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-full animate-pulse whitespace-nowrap">
-                            ✨ {report.comments.some((c: any) => c.createdBy === 'owner') 
-                              ? 'オーナー' 
-                              : '店長'}からコメントあり
-                          </span>
+                          report.comments.some((c: any) => c.hasBonus) ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-full animate-pulse whitespace-nowrap">
+                              ✨ 賞与プレゼント
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs bg-accent-primary/10 text-accent-primary rounded-full font-medium whitespace-nowrap">
+                              {report.comments.some((c: any) => c.createdBy === 'owner') 
+                                ? 'オーナー' 
+                                : '店長'}からコメントあり
+                            </span>
+                          )
                         )}
                         {!expandedCard || expandedCard !== report.id ? (
                           <span className="text-sm text-text-sub truncate flex-1">
@@ -332,6 +339,36 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                                         {report.formData[field.id]} / {field.maxRating || 5}
                                       </span>
                                     </div>
+                                  ) : field.type === 'image' ? (
+                                    report.formData[field.id] && report.formData[field.id].startsWith('/uploads/') ? (
+                                      <div className="space-y-2">
+                                        {report.formData[`${field.id}_comment`] && (
+                                          <p className="text-sm text-text-sub">
+                                            {report.formData[`${field.id}_comment`]}
+                                          </p>
+                                        )}
+                                        <div 
+                                          className="inline-block cursor-pointer hover:opacity-80 transition-opacity"
+                                          onClick={() => setEnlargedImage(`${API_BASE_URL}${report.formData[field.id]}`)}
+                                        >
+                                          <img
+                                            src={`${API_BASE_URL}${report.formData[field.id]}`}
+                                            alt={field.title}
+                                            className="max-w-xs h-auto rounded-lg shadow-md"
+                                            style={{ maxHeight: '200px' }}
+                                          />
+                                          <p className="text-xs text-text-sub mt-1">クリックして拡大</p>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-sm text-text-sub">
+                                        {report.formData[`${field.id}_comment`] ? (
+                                          <p>{report.formData[`${field.id}_comment`]}</p>
+                                        ) : (
+                                          <p>(画像未添付)</p>
+                                        )}
+                                      </div>
+                                    )
                                   ) : (
                                     <div className="whitespace-pre-wrap p-2 bg-background-sub rounded">
                                       {report.formData[field.id] || '(未記入)'}
@@ -408,6 +445,31 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
           )}
         </div>
       </div>
+
+      {/* 画像拡大モーダル */}
+      {enlargedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setEnlargedImage(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={enlargedImage}
+              alt="拡大画像"
+              className="max-w-full max-h-[90vh] rounded-lg"
+            />
+            <button
+              onClick={() => setEnlargedImage(null)}
+              className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70 transition-opacity"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

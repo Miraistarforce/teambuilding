@@ -23,9 +23,9 @@ interface ReportField {
   maxRating?: number;
 }
 
-type SettingSection = 'main' | 'report-format' | 'comment-templates' | 'tension-alerts';
+type SettingSection = 'main' | 'report-format' | 'comment-templates' | 'tension-alerts' | 'profile';
 
-export default function Settings({ store }: SettingsProps) {
+export default function Settings({ store, role }: SettingsProps) {
   const [currentSection, setCurrentSection] = useState<SettingSection>('main');
   const [newTemplate, setNewTemplate] = useState('');
   const [reportFields, setReportFields] = useState<ReportField[]>([]);
@@ -36,6 +36,10 @@ export default function Settings({ store }: SettingsProps) {
   const [alertThreshold, setAlertThreshold] = useState(0.3);
   const [consecutiveDays, setConsecutiveDays] = useState(3);
   const [alertsEnabled, setAlertsEnabled] = useState(true);
+  const [bonusEnabled, setBonusEnabled] = useState(true);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const queryClient = useQueryClient();
 
   // 日報フォーマット取得
@@ -74,6 +78,24 @@ export default function Settings({ store }: SettingsProps) {
         }
       );
       return response.data as Template[];
+    },
+    enabled: currentSection === 'comment-templates',
+  });
+  
+  // 賞与設定を取得
+  useQuery({
+    queryKey: ['bonus-setting', store.id],
+    queryFn: async () => {
+      const response = await axios.get(
+        `${API_BASE_URL}/stores/${store.id}/bonus-setting`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
+          },
+        }
+      );
+      setBonusEnabled(response.data.bonusEnabled ?? true);
+      return response.data;
     },
     enabled: currentSection === 'comment-templates',
   });
@@ -186,6 +208,66 @@ export default function Settings({ store }: SettingsProps) {
     onError: (error) => {
       console.error('フォーマット保存エラー:', error);
       alert('フォーマットの保存に失敗しました');
+    },
+  });
+  
+  // パスワード変更
+  const changePasswordMutation = useMutation({
+    mutationFn: async () => {
+      const response = await axios.put(
+        `${API_BASE_URL}/stores/${store.id}/change-password`,
+        {
+          currentPassword,
+          newPassword,
+          role,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
+          },
+        }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      alert('パスワードを変更しました');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    },
+    onError: (error: any) => {
+      console.error('パスワード変更エラー:', error);
+      if (error.response?.status === 401) {
+        alert('現在のパスワードが正しくありません');
+      } else {
+        alert('パスワードの変更に失敗しました');
+      }
+    },
+  });
+  
+  // 賞与設定保存
+  const saveBonusSettingMutation = useMutation({
+    mutationFn: async () => {
+      const response = await axios.put(
+        `${API_BASE_URL}/stores/${store.id}/bonus-setting`,
+        {
+          bonusEnabled,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
+          },
+        }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bonus-setting'] });
+      alert('賞与設定を保存しました');
+    },
+    onError: (error) => {
+      console.error('賞与設定保存エラー:', error);
+      alert('設定の保存に失敗しました');
     },
   });
   
@@ -309,6 +391,22 @@ export default function Settings({ store }: SettingsProps) {
                   <h3 className="text-lg font-semibold mb-2">⚠️ テンションアラート</h3>
                   <p className="text-sm text-text-sub">
                     スタッフのテンション低下を検知する設定を管理できます
+                  </p>
+                </div>
+                <span className="text-2xl text-text-sub">→</span>
+              </div>
+            </button>
+
+            {/* プロフィール設定カード */}
+            <button
+              onClick={() => setCurrentSection('profile')}
+              className="bg-background-sub p-6 rounded-lg hover:shadow-md transition-shadow text-left"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">👤 プロフィール設定</h3>
+                  <p className="text-sm text-text-sub">
+                    パスワードの変更などアカウント設定を管理できます
                   </p>
                 </div>
                 <span className="text-2xl text-text-sub">→</span>
@@ -514,6 +612,35 @@ export default function Settings({ store }: SettingsProps) {
             <h2 className="text-xl font-semibold">コメントテンプレート管理</h2>
           </div>
 
+          {/* 賞与プレゼント設定 */}
+          <div className="mb-6 p-4 bg-background-sub rounded-lg">
+            <h3 className="text-sm font-semibold mb-3">賞与プレゼント設定</h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm">日報コメントで賞与をプレゼントできるボタンを表示</p>
+                <p className="text-xs text-text-sub mt-1">
+                  オンにすると、日報にコメントする際に賞与プレゼントボタンが表示されます
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={bonusEnabled}
+                  onChange={(e) => setBonusEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-accent-primary"></div>
+              </label>
+            </div>
+            <button
+              onClick={() => saveBonusSettingMutation.mutate()}
+              disabled={saveBonusSettingMutation.isPending}
+              className="mt-3 px-4 py-2 bg-accent-primary text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium disabled:opacity-50"
+            >
+              {saveBonusSettingMutation.isPending ? '保存中...' : '設定を保存'}
+            </button>
+          </div>
+
           {/* 新規テンプレート追加 */}
           <div className="mb-6">
             <label className="block text-sm font-medium mb-2">新しいテンプレートを追加</label>
@@ -651,6 +778,104 @@ export default function Settings({ store }: SettingsProps) {
             >
               {saveTensionSettingsMutation.isPending ? '保存中...' : '設定を保存'}
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // プロフィール設定画面
+  if (currentSection === 'profile') {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-background-main rounded-lg shadow-subtle p-6">
+          <div className="flex items-center mb-6">
+            <button
+              onClick={() => setCurrentSection('main')}
+              className="mr-4 text-text-sub hover:text-text-main"
+            >
+              ← 戻る
+            </button>
+            <h2 className="text-xl font-semibold">プロフィール設定</h2>
+          </div>
+          
+          <div className="space-y-6">
+            {/* 現在のロール表示 */}
+            <div className="p-4 bg-background-sub rounded-lg">
+              <h3 className="font-medium mb-2">アカウント情報</h3>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-text-sub">店舗名:</span>
+                  <span className="text-sm font-medium">{store.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-text-sub">ロール:</span>
+                  <span className="text-sm font-medium">{role === 'owner' ? 'オーナー' : '店長'}</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* パスワード変更 */}
+            <div className="p-4 bg-background-sub rounded-lg">
+              <h3 className="font-medium mb-4">パスワード変更</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">現在のパスワード</label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary"
+                    placeholder="現在のパスワードを入力"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">新しいパスワード</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary"
+                    placeholder="新しいパスワードを入力"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">新しいパスワード（確認）</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary"
+                    placeholder="新しいパスワードを再入力"
+                  />
+                </div>
+                {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                  <p className="text-sm text-accent-error">パスワードが一致しません</p>
+                )}
+              </div>
+              
+              <button
+                onClick={() => {
+                  if (!currentPassword || !newPassword || !confirmPassword) {
+                    alert('すべての項目を入力してください');
+                    return;
+                  }
+                  if (newPassword !== confirmPassword) {
+                    alert('新しいパスワードが一致しません');
+                    return;
+                  }
+                  if (newPassword.length < 4) {
+                    alert('パスワードは4文字以上で設定してください');
+                    return;
+                  }
+                  changePasswordMutation.mutate();
+                }}
+                disabled={changePasswordMutation.isPending}
+                className="mt-6 w-full bg-accent-primary text-white py-3 px-4 rounded-lg hover:opacity-90 transition-opacity font-medium disabled:opacity-50"
+              >
+                {changePasswordMutation.isPending ? '変更中...' : 'パスワードを変更'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

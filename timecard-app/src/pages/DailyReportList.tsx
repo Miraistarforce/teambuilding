@@ -225,6 +225,17 @@ export default function DailyReportList({ store }: DailyReportListProps) {
                         コメント済み
                       </span>
                     )}
+                    {report.formData && (() => {
+                      const formData = JSON.parse(report.formData);
+                      const hasImage = Object.values(formData).some(
+                        (value: any) => typeof value === 'string' && value.startsWith('/uploads/daily-reports/')
+                      );
+                      return hasImage ? (
+                        <span className="px-2 py-0.5 text-xs bg-accent-primary/10 text-accent-primary rounded-full font-medium">
+                          画像送信あり
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="text-sm text-text-sub">
                     {formatReportDate(report.date)} {formatTime(report.createdAt)}
