@@ -34,7 +34,7 @@ interface Report {
 
 interface ReportField {
   id: string;
-  type: 'text' | 'rating';
+  type: 'text' | 'rating' | 'image';
   title: string;
   placeholder?: string;
   required?: boolean;
@@ -315,6 +315,19 @@ export default function DailyReportList({ store }: DailyReportListProps) {
                                 <span className="ml-2 text-sm text-text-sub">
                                   {report.formData[field.id]} / {field.maxRating || 5}
                                 </span>
+                              </div>
+                            ) : field.type === 'image' ? (
+                              <div className="p-2 bg-background-sub rounded">
+                                {report.formData[field.id] && report.formData[field.id].startsWith('/uploads/daily-reports/') ? (
+                                  <div className="flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span className="text-accent-primary">画像投稿あり</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-text-sub">(画像なし)</span>
+                                )}
                               </div>
                             ) : (
                               <div className="whitespace-pre-wrap p-2 bg-background-sub rounded">
