@@ -38,6 +38,19 @@ const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
   : ['http://localhost:4000', 'http://localhost:4001', 'http://localhost:4002', 'http://localhost:4003', 'http://localhost:4004'];
 
+// Add common production URLs if not in CORS_ORIGIN
+const defaultProductionOrigins = [
+  'https://teambuilding-timecard.vercel.app',
+  'https://teambuilding-admin.vercel.app',
+  'https://teambuilding-store-admin.vercel.app'
+];
+
+defaultProductionOrigins.forEach(origin => {
+  if (!corsOrigins.includes(origin)) {
+    corsOrigins.push(origin);
+  }
+});
+
 // セキュリティ設定
 app.use(helmet({
   contentSecurityPolicy: {
@@ -45,14 +58,15 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"]
     }
-  }
+  },
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
 // レート制限設定
@@ -94,9 +108,9 @@ if (!fs.existsSync(dailyReportsDir)) {
   fs.mkdirSync(dailyReportsDir, { recursive: true });
 }
 
-// Serve static files for uploaded images
-app.use('/uploads', express.static(uploadDir));
-app.use('/api/uploads', express.static(uploadDir));
+// Serve static files for uploaded images with CORS headers
+app.use('/uploads', cors({ origin: corsOrigins, credentials: true }), express.static(uploadDir));
+app.use('/api/uploads', cors({ origin: corsOrigins, credentials: true }), express.static(uploadDir));
 
 // セッション設定
 app.use(session({
