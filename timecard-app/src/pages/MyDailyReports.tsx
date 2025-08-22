@@ -330,7 +330,7 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                                       </span>
                                     </div>
                                   ) : field.type === 'image' ? (
-                                    report.formData[field.id] && report.formData[field.id].startsWith('/uploads/') ? (
+                                    report.formData[field.id] && (report.formData[field.id].startsWith('/uploads/') || report.formData[field.id].startsWith('http')) ? (
                                       <div className="space-y-2">
                                         {report.formData[`${field.id}_comment`] && (
                                           <p className="text-sm text-text-sub">
@@ -339,10 +339,10 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                                         )}
                                         <div 
                                           className="inline-block cursor-pointer hover:opacity-80 transition-opacity"
-                                          onClick={() => setEnlargedImage(`${API_BASE_URL}${report.formData[field.id]}`)}
+                                          onClick={() => setEnlargedImage(report.formData[field.id].startsWith('http') ? report.formData[field.id] : `${API_BASE_URL}${report.formData[field.id]}`)}
                                         >
                                           <img
-                                            src={`${API_BASE_URL}${report.formData[field.id]}`}
+                                            src={report.formData[field.id].startsWith('http') ? report.formData[field.id] : `${API_BASE_URL}${report.formData[field.id]}`}
                                             alt={field.title}
                                             className="max-w-xs h-auto rounded-lg shadow-md"
                                             style={{ maxHeight: '200px' }}

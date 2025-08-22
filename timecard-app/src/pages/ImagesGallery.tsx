@@ -128,7 +128,7 @@ export default function ImagesGallery({ store }: ImagesGalleryProps) {
                     onClick={() => setSelectedImage(image)}
                   >
                     <img
-                      src={`${API_BASE_URL}${image.imageUrl}`}
+                      src={image.imageUrl.startsWith('http') ? image.imageUrl : `${API_BASE_URL}${image.imageUrl}`}
                       alt={`${image.staffName}の画像`}
                       className="w-full h-full object-cover"
                       loading="lazy"
@@ -213,7 +213,7 @@ export default function ImagesGallery({ store }: ImagesGalleryProps) {
               </div>
               
               <img
-                src={`${API_BASE_URL}${selectedImage.imageUrl}`}
+                src={selectedImage.imageUrl.startsWith('http') ? selectedImage.imageUrl : `${API_BASE_URL}${selectedImage.imageUrl}`}
                 alt={`${selectedImage.staffName}の画像`}
                 className="w-full rounded-lg mb-4"
               />
