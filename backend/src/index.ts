@@ -99,14 +99,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
 // Ensure upload directory exists
+import { ensureUploadsDirExists } from './ensureUploadsDir';
+ensureUploadsDirExists();
 const uploadDir = path.join(__dirname, '../uploads');
-const dailyReportsDir = path.join(uploadDir, 'daily-reports');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-if (!fs.existsSync(dailyReportsDir)) {
-  fs.mkdirSync(dailyReportsDir, { recursive: true });
-}
 
 // Serve static files for uploaded images with CORS headers
 app.use('/uploads', cors({ origin: corsOrigins, credentials: true }), express.static(uploadDir));

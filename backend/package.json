@@ -5,9 +5,10 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
-    "build": "tsc && npm run prisma:generate",
+    "build": "tsc && npm run prisma:generate && npm run ensure-uploads",
     "build:production": "npm run clean && npm run build",
-    "start": "node dist/index.js",
+    "start": "npm run ensure-uploads && node dist/index.js",
+    "ensure-uploads": "mkdir -p uploads/daily-reports",
     "start:production": "NODE_ENV=production node dist/index.js",
     "clean": "rm -rf dist",
     "prisma:generate": "prisma generate",

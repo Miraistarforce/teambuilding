@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { staffApi, timeRecordsApi, fetchCSRFToken } from '../lib/api';
 
 interface StaffTimecardProps {
@@ -264,10 +264,14 @@ function StaffCard({
   onRemove: () => void;
   showToast: (message: string) => void;
 }) {
+  const queryClient = useQueryClient();
+  
   const { data: timeRecord, refetch: refetchRecord } = useQuery({
     queryKey: ['timeRecord', staffId],
     queryFn: () => timeRecordsApi.getTodayRecord(staffId),
     refetchInterval: 60000, // 1分ごとに更新
+    staleTime: 0, // 常に最新データを取得
+    gcTime: 0, // キャッシュを保持しない
   });
 
   // 勤務時間を動的に更新するための状態
@@ -286,8 +290,9 @@ function StaffCard({
 
   const clockInMutation = useMutation({
     mutationFn: () => timeRecordsApi.clockIn(staffId),
-    onSuccess: () => {
-      refetchRecord();
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
+      await refetchRecord();
       showToast(`${staffName}さんが出勤しました`);
     },
     onError: () => {
@@ -297,8 +302,9 @@ function StaffCard({
 
   const clockOutMutation = useMutation({
     mutationFn: () => timeRecordsApi.clockOut(staffId),
-    onSuccess: () => {
-      refetchRecord();
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
+      await refetchRecord();
       showToast(`${staffName}さんが退勤しました`);
     },
     onError: () => {
@@ -308,8 +314,9 @@ function StaffCard({
 
   const breakStartMutation = useMutation({
     mutationFn: () => timeRecordsApi.breakStart(staffId),
-    onSuccess: () => {
-      refetchRecord();
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
+      await refetchRecord();
       showToast(`${staffName}さんが休憩を開始しました`);
     },
     onError: () => {
@@ -319,8 +326,9 @@ function StaffCard({
 
   const breakEndMutation = useMutation({
     mutationFn: () => timeRecordsApi.breakEnd(staffId),
-    onSuccess: () => {
-      refetchRecord();
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
+      await refetchRecord();
       showToast(`${staffName}さんが休憩を終了しました`);
     },
     onError: () => {
