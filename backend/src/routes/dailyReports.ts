@@ -247,10 +247,16 @@ router.get('/list', authenticate, async (req, res) => {
     const parsedReports = reports.map(report => {
       if (report.formData) {
         const formData = JSON.parse(report.formData);
-        // Convert image paths to public URLs
+        // Convert image paths to public URLs (only for actual image files)
         for (const key in formData) {
           const value = formData[key];
-          if (typeof value === 'string' && value.length > 0 && !value.startsWith('http') && !value.startsWith('/')) {
+          // Check if it's a valid image path (contains file extension)
+          if (typeof value === 'string' && value.length > 0 && 
+              !value.startsWith('http') && !value.startsWith('/') &&
+              (value.includes('.jpg') || value.includes('.jpeg') || 
+               value.includes('.png') || value.includes('.gif') || 
+               value.includes('.webp') || value.includes('.JPG') ||
+               value.includes('.PNG') || value.includes('.JPEG'))) {
             formData[key] = getPublicUrl(value);
           }
         }
@@ -350,10 +356,16 @@ router.get('/all-staff', authenticate, async (req, res) => {
     const parsedReports = reports.map(report => {
       if (report.formData) {
         const formData = JSON.parse(report.formData);
-        // Convert image paths to public URLs
+        // Convert image paths to public URLs (only for actual image files)
         for (const key in formData) {
           const value = formData[key];
-          if (typeof value === 'string' && value.length > 0 && !value.startsWith('http') && !value.startsWith('/')) {
+          // Check if it's a valid image path (contains file extension)
+          if (typeof value === 'string' && value.length > 0 && 
+              !value.startsWith('http') && !value.startsWith('/') &&
+              (value.includes('.jpg') || value.includes('.jpeg') || 
+               value.includes('.png') || value.includes('.gif') || 
+               value.includes('.webp') || value.includes('.JPG') ||
+               value.includes('.PNG') || value.includes('.JPEG'))) {
             formData[key] = getPublicUrl(value);
           }
         }
@@ -472,7 +484,12 @@ router.get('/images', authenticate, async (req, res) => {
         
         // Check each field for image paths (now Supabase Storage paths)
         Object.entries(formData).forEach(([fieldId, value]) => {
-          if (typeof value === 'string' && value.length > 0 && !value.startsWith('http')) {
+          // Only process actual image files (with image extensions)
+          if (typeof value === 'string' && value.length > 0 && !value.startsWith('http') &&
+              (value.includes('.jpg') || value.includes('.jpeg') || 
+               value.includes('.png') || value.includes('.gif') || 
+               value.includes('.webp') || value.includes('.JPG') ||
+               value.includes('.PNG') || value.includes('.JPEG'))) {
             // Generate public URL for Supabase Storage
             const publicUrl = getPublicUrl(value);
             images.push({
