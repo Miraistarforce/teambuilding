@@ -272,21 +272,6 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                             </span>
                           )
                         )}
-                        {!expandedCard || expandedCard !== report.id ? (
-                          <span className="text-sm text-text-sub truncate flex-1">
-                            {report.formData && reportFormat ? (
-                              reportFormat.fields.slice(0, 2).map((field) => 
-                                `${field.title}: ${
-                                  field.type === 'rating' 
-                                    ? `★${report.formData[field.id]}` 
-                                    : report.formData[field.id]?.substring(0, 20)
-                                }`
-                              ).join(', ')
-                            ) : (
-                              report.content
-                            )}
-                          </span>
-                        ) : null}
                       </div>
                       <svg
                         className={`w-5 h-5 text-text-sub transition-transform ${
@@ -388,9 +373,6 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                               {report.content}
                             </div>
                           )}
-                        </div>
-                        <div className="mt-3 text-xs text-text-sub">
-                          提出時刻: {format(new Date(report.createdAt), 'HH:mm:ss', { locale: ja })}
                         </div>
                         
                         {/* コメント表示 */}
