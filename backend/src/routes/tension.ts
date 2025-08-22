@@ -31,19 +31,35 @@ router.post('/analyze', authenticate, async (req: AuthRequest, res, next) => {
       ? await aiAnalyzeTension(text)
       : simpleAnalyzeTension(text);
     
-    // 分析結果を保存
-    const tensionRecord = await prisma.tensionAnalysis.create({
-      data: {
-        staffId: report.staffId,
-        reportId: report.id,
-        date: report.date,
-        tensionScore: analysis.score,
-        keywords: JSON.stringify({
-          positive: analysis.positiveKeywords,
-          negative: analysis.negativeKeywords
-        })
-      }
+    // 既存の分析結果をチェック
+    const existingAnalysis = await prisma.tensionAnalysis.findUnique({
+      where: { reportId: report.id }
     });
+
+    // 分析結果を保存または更新
+    const tensionRecord = existingAnalysis
+      ? await prisma.tensionAnalysis.update({
+          where: { reportId: report.id },
+          data: {
+            tensionScore: analysis.score,
+            keywords: JSON.stringify({
+              positive: analysis.positiveKeywords,
+              negative: analysis.negativeKeywords
+            })
+          }
+        })
+      : await prisma.tensionAnalysis.create({
+          data: {
+            staffId: report.staffId,
+            reportId: report.id,
+            date: report.date,
+            tensionScore: analysis.score,
+            keywords: JSON.stringify({
+              positive: analysis.positiveKeywords,
+              negative: analysis.negativeKeywords
+            })
+          }
+        });
     
     // スタッフの統計を更新
     await updateStaffStats(report.staffId);
