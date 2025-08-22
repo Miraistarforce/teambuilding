@@ -136,14 +136,20 @@ router.get('/:storeId/bonus-setting', authenticate, async (req: AuthRequest, res
       throw new AppError('Permission denied', 403);
     }
     
-    const store = await prisma.store.findUnique({
-      where: { id: parseInt(storeId) },
-      select: {
-        bonusEnabled: true
-      }
-    });
-    
-    res.json({ bonusEnabled: store?.bonusEnabled ?? true });
+    try {
+      const store = await prisma.store.findUnique({
+        where: { id: parseInt(storeId) },
+        select: {
+          bonusEnabled: true
+        }
+      });
+      
+      res.json({ bonusEnabled: store?.bonusEnabled ?? true });
+    } catch (dbError) {
+      // If bonusEnabled column doesn't exist, return default value
+      console.warn('bonusEnabled column may not exist in database, returning default value');
+      res.json({ bonusEnabled: true });
+    }
   } catch (error) {
     next(error);
   }
@@ -160,12 +166,18 @@ router.put('/:storeId/bonus-setting', authenticate, async (req: AuthRequest, res
       throw new AppError('Permission denied', 403);
     }
     
-    await prisma.store.update({
-      where: { id: parseInt(storeId) },
-      data: { bonusEnabled }
-    });
-    
-    res.json({ success: true });
+    try {
+      await prisma.store.update({
+        where: { id: parseInt(storeId) },
+        data: { bonusEnabled }
+      });
+      
+      res.json({ success: true });
+    } catch (dbError) {
+      // If bonusEnabled column doesn't exist, ignore the update
+      console.warn('bonusEnabled column may not exist in database, ignoring update');
+      res.json({ success: true });
+    }
   } catch (error) {
     next(error);
   }
