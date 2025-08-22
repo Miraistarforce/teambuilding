@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import path from 'path';
+import fs from 'fs';
 import prisma from './lib/prisma';
 import authRoutes from './routes/auth';
 import companyRoutes from './routes/companies';
@@ -83,8 +84,19 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+// Ensure upload directory exists
+const uploadDir = path.join(__dirname, '../uploads');
+const dailyReportsDir = path.join(uploadDir, 'daily-reports');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+if (!fs.existsSync(dailyReportsDir)) {
+  fs.mkdirSync(dailyReportsDir, { recursive: true });
+}
+
 // Serve static files for uploaded images
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(uploadDir));
+app.use('/api/uploads', express.static(uploadDir));
 
 // セッション設定
 app.use(session({
