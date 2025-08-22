@@ -316,12 +316,17 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                         <div className="text-sm text-text-main">
                           {report.formData && reportFormat ? (
                             <div className="space-y-3">
-                              {reportFormat.fields.map(field => (
-                                <div key={field.id}>
-                                  <div className="font-medium text-accent-primary mb-1">
-                                    {field.title}
-                                  </div>
-                                  {field.type === 'rating' ? (
+                              {reportFormat.fields.map(field => {
+                                // 未記入の項目はスキップ
+                                const fieldValue = report.formData[field.id];
+                                if (!fieldValue || fieldValue === '') return null;
+                                
+                                return (
+                                  <div key={field.id}>
+                                    <div className="font-medium text-accent-primary mb-1">
+                                      {field.title}
+                                    </div>
+                                    {field.type === 'rating' ? (
                                     <div className="flex items-center gap-1">
                                       {Array.from({ length: field.maxRating || 5 }, (_, i) => (
                                         <span
@@ -371,11 +376,12 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                                     )
                                   ) : (
                                     <div className="whitespace-pre-wrap p-2 bg-background-sub rounded">
-                                      {report.formData[field.id] || '(未記入)'}
+                                      {report.formData[field.id]}
                                     </div>
                                   )}
                                 </div>
-                              ))}
+                              );
+                            })}
                             </div>
                           ) : (
                             <div className="whitespace-pre-wrap">
