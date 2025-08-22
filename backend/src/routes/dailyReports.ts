@@ -364,6 +364,60 @@ router.get('/all-staff', authenticate, async (req, res) => {
   }
 });
 
+// 画像を削除
+router.delete('/images/:imageUrl(*)', authenticate, async (req, res) => {
+  try {
+    const { imageUrl } = req.params;
+    const { storeId } = req.query;
+    const user = (req as any).user;
+
+    // 権限チェック（manager/ownerのみ）
+    if (user.role !== 'manager' && user.role !== 'owner') {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    // 画像URLから実際のファイルパスを取得
+    const fileName = imageUrl.split('/').pop();
+    const filePath = path.join(__dirname, '../../uploads/daily-reports', fileName || '');
+
+    // ファイルを削除
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // データベースから画像URLを削除
+    const reports = await prisma.dailyReport.findMany({
+      where: {
+        storeId: parseInt(storeId as string),
+        formData: {
+          contains: imageUrl
+        }
+      }
+    });
+
+    // 各レポートから画像URLを削除
+    for (const report of reports) {
+      if (report.formData) {
+        const formData = JSON.parse(report.formData);
+        for (const key in formData) {
+          if (formData[key] === `/uploads/daily-reports/${fileName}`) {
+            formData[key] = '';
+          }
+        }
+        await prisma.dailyReport.update({
+          where: { id: report.id },
+          data: { formData: JSON.stringify(formData) }
+        });
+      }
+    }
+
+    res.json({ success: true, message: '画像を削除しました' });
+  } catch (error) {
+    console.error('画像削除エラー:', error);
+    res.status(500).json({ error: '画像の削除に失敗しました' });
+  }
+});
+
 // 画像一覧を取得
 router.get('/images', authenticate, async (req, res) => {
   try {

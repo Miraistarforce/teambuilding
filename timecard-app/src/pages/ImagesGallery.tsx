@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -22,6 +22,7 @@ interface ImageData {
 
 export default function ImagesGallery({ store }: ImagesGalleryProps) {
   const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: images, isLoading } = useQuery({
     queryKey: ['daily-report-images', store.id],
@@ -38,6 +39,35 @@ export default function ImagesGallery({ store }: ImagesGalleryProps) {
       return response.data as ImageData[];
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (imageUrl: string) => {
+      const response = await axios.delete(
+        `${API_BASE_URL}/daily-reports/images/${encodeURIComponent(imageUrl)}`,
+        {
+          params: { storeId: store.id },
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
+          },
+        }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['daily-report-images', store.id] });
+      setSelectedImage(null);
+      alert('画像を削除しました');
+    },
+    onError: () => {
+      alert('画像の削除に失敗しました');
+    },
+  });
+
+  const handleDelete = (image: ImageData) => {
+    if (confirm(`${image.staffName}の画像を削除してもよろしいですか？`)) {
+      deleteMutation.mutate(image.imageUrl);
+    }
+  };
 
   const handleDownload = async (image: ImageData) => {
     try {
@@ -124,15 +154,26 @@ export default function ImagesGallery({ store }: ImagesGalleryProps) {
                         {image.comment}
                       </p>
                     )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownload(image);
-                      }}
-                      className="mt-2 text-xs text-accent-primary hover:underline"
-                    >
-                      ダウンロード
-                    </button>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownload(image);
+                        }}
+                        className="text-xs text-accent-primary hover:underline"
+                      >
+                        ダウンロード
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(image);
+                        }}
+                        className="text-xs text-accent-error hover:underline"
+                      >
+                        削除
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -190,6 +231,12 @@ export default function ImagesGallery({ store }: ImagesGalleryProps) {
                   className="flex-1 bg-accent-primary text-white py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"
                 >
                   ダウンロード
+                </button>
+                <button
+                  onClick={() => handleDelete(selectedImage)}
+                  className="flex-1 bg-accent-error text-white py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  削除
                 </button>
                 <button
                   onClick={() => setSelectedImage(null)}
