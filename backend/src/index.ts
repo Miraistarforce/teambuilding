@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
+import path from 'path';
 import prisma from './lib/prisma';
 import authRoutes from './routes/auth';
 import companyRoutes from './routes/companies';
@@ -81,6 +82,9 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+// Serve static files for uploaded images
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // セッション設定
 app.use(session({

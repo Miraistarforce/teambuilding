@@ -220,6 +220,11 @@ export default function DailyReportList({ store }: DailyReportListProps) {
                     <span className="font-medium">
                       {report.staff.name}
                     </span>
+                    {report.comments && report.comments.length > 0 && (
+                      <span className="px-2 py-0.5 text-xs bg-accent-success/10 text-accent-success rounded-full font-medium">
+                        コメント済み
+                      </span>
+                    )}
                   </div>
                   <div className="text-sm text-text-sub">
                     {formatReportDate(report.date)} {formatTime(report.createdAt)}

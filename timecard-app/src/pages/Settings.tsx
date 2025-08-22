@@ -16,7 +16,7 @@ interface Template {
 
 interface ReportField {
   id: string;
-  type: 'text' | 'rating';
+  type: 'text' | 'rating' | 'image';
   title: string;
   placeholder?: string;
   required?: boolean;
@@ -30,7 +30,7 @@ export default function Settings({ store }: SettingsProps) {
   const [newTemplate, setNewTemplate] = useState('');
   const [reportFields, setReportFields] = useState<ReportField[]>([]);
   const [newFieldTitle, setNewFieldTitle] = useState('');
-  const [newFieldType, setNewFieldType] = useState<'text' | 'rating'>('text');
+  const [newFieldType, setNewFieldType] = useState<'text' | 'rating' | 'image'>('text');
   const [newFieldPlaceholder, setNewFieldPlaceholder] = useState('');
   const [newFieldMaxRating, setNewFieldMaxRating] = useState(5);
   const [alertThreshold, setAlertThreshold] = useState(0.3);
@@ -346,7 +346,7 @@ export default function Settings({ store }: SettingsProps) {
                     <div className="flex-1">
                       <span className="font-medium">{field.title}</span>
                       <span className="ml-2 text-xs text-text-sub">
-                        ({field.type === 'text' ? 'テキスト' : `評価（★${field.maxRating}）`})
+                        ({field.type === 'text' ? 'テキスト' : field.type === 'rating' ? `評価（★${field.maxRating}）` : '画像添付'})
                       </span>
                       {field.placeholder && (
                         <p className="text-xs text-text-sub mt-1">プレースホルダー: {field.placeholder}</p>
@@ -413,11 +413,12 @@ export default function Settings({ store }: SettingsProps) {
                   <label className="block text-xs font-medium mb-1">入力タイプ</label>
                   <select
                     value={newFieldType}
-                    onChange={(e) => setNewFieldType(e.target.value as 'text' | 'rating')}
+                    onChange={(e) => setNewFieldType(e.target.value as 'text' | 'rating' | 'image')}
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary"
                   >
                     <option value="text">テキスト入力</option>
                     <option value="rating">星評価</option>
+                    <option value="image">画像添付</option>
                   </select>
                 </div>
               </div>
@@ -433,7 +434,7 @@ export default function Settings({ store }: SettingsProps) {
                     className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary"
                   />
                 </div>
-              ) : (
+              ) : newFieldType === 'rating' ? (
                 <div>
                   <label className="block text-xs font-medium mb-1">最大星数</label>
                   <select
@@ -445,6 +446,17 @@ export default function Settings({ store }: SettingsProps) {
                       <option key={num} value={num}>{num}つ星</option>
                     ))}
                   </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-medium mb-1">画像添付の説明</label>
+                  <input
+                    type="text"
+                    value={newFieldPlaceholder}
+                    onChange={(e) => setNewFieldPlaceholder(e.target.value)}
+                    placeholder="例: 今日の作業風景や成果物の写真"
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary"
+                  />
                 </div>
               )}
 

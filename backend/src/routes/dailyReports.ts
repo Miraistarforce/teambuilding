@@ -1,8 +1,41 @@
 import { Router } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate } from '../middlewares/auth';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const router = Router();
+
+// Configure multer for image uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../../uploads/daily-reports');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage,
+  fileFilter: (req, file, cb) => {
+    // Only allow images
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('画像ファイルのみアップロード可能です'));
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
 
 // 日報を作成
 router.post('/', authenticate, async (req, res) => {
@@ -72,6 +105,91 @@ router.post('/', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('日報作成エラー:', error);
+    res.status(500).json({ error: '日報の作成に失敗しました' });
+  }
+});
+
+// 日報を作成（画像付き）
+router.post('/with-images', authenticate, upload.any(), async (req, res) => {
+  try {
+    const { staffId, storeId, content, formData: formDataString, date } = req.body;
+    const user = (req as any).user;
+    const files = req.files as Express.Multer.File[];
+
+    const reportDate = new Date(date);
+    reportDate.setHours(0, 0, 0, 0);
+
+    // Parse formData and add image URLs
+    let formDataObj = formDataString ? JSON.parse(formDataString) : null;
+    
+    if (formDataObj && files) {
+      // Map uploaded files to their field IDs
+      files.forEach(file => {
+        const fieldMatch = file.fieldname.match(/^image_(.+)$/);
+        if (fieldMatch) {
+          const fieldId = fieldMatch[1];
+          // Store the URL path for the image
+          formDataObj[fieldId] = `/uploads/daily-reports/${file.filename}`;
+        }
+      });
+    }
+
+    // Check for existing report
+    const existingReport = await prisma.dailyReport.findFirst({
+      where: {
+        staffId: parseInt(staffId),
+        date: reportDate,
+      },
+    });
+
+    let report;
+    if (existingReport) {
+      // Update existing report
+      report = await prisma.dailyReport.update({
+        where: {
+          id: existingReport.id,
+        },
+        data: {
+          content,
+          formData: formDataObj ? JSON.stringify(formDataObj) : null,
+          isRead: false,
+          updatedAt: new Date(),
+        },
+        include: {
+          staff: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+    } else {
+      // Create new report
+      report = await prisma.dailyReport.create({
+        data: {
+          staffId: parseInt(staffId),
+          storeId: parseInt(storeId),
+          date: reportDate,
+          content,
+          formData: formDataObj ? JSON.stringify(formDataObj) : null,
+          isRead: false,
+        },
+        include: {
+          staff: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
+    }
+
+    res.json({
+      id: report.id,
+      message: '日報を送信しました',
+    });
+  } catch (error) {
+    console.error('日報作成エラー（画像付き）:', error);
     res.status(500).json({ error: '日報の作成に失敗しました' });
   }
 });
@@ -241,6 +359,67 @@ router.get('/all-staff', authenticate, async (req, res) => {
   } catch (error) {
     console.error('全スタッフ日報取得エラー:', error);
     res.status(500).json({ error: '日報の取得に失敗しました' });
+  }
+});
+
+// 画像一覧を取得
+router.get('/images', authenticate, async (req, res) => {
+  try {
+    const { storeId } = req.query;
+    const user = (req as any).user;
+
+    // 権限チェック（manager/ownerのみ）
+    if (user.role !== 'manager' && user.role !== 'owner') {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    // Get all reports with images
+    const reports = await prisma.dailyReport.findMany({
+      where: {
+        storeId: parseInt(storeId as string),
+        formData: {
+          not: null,
+        },
+      },
+      include: {
+        staff: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // Extract images from formData
+    const images: any[] = [];
+    reports.forEach(report => {
+      if (report.formData) {
+        const formData = JSON.parse(report.formData);
+        
+        // Check each field for image URLs
+        Object.entries(formData).forEach(([fieldId, value]) => {
+          if (typeof value === 'string' && value.startsWith('/uploads/daily-reports/')) {
+            images.push({
+              id: `${report.id}_${fieldId}`,
+              reportId: report.id,
+              staffName: report.staff.name,
+              date: report.date,
+              createdAt: report.createdAt,
+              imageUrl: value,
+              comment: formData[`${fieldId}_comment`] || '',
+            });
+          }
+        });
+      }
+    });
+
+    res.json(images);
+  } catch (error) {
+    console.error('画像一覧取得エラー:', error);
+    res.status(500).json({ error: '画像の取得に失敗しました' });
   }
 });
 

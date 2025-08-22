@@ -8,6 +8,7 @@ import InterviewHistory from './InterviewHistory';
 import DailyReportList from './DailyReportList';
 import Settings from './Settings';
 import StaffManagement from './StaffManagement';
+import ImagesGallery from './ImagesGallery';
 
 interface ManagerDashboardProps {
   store: { id: number; name: string };
@@ -17,7 +18,7 @@ interface ManagerDashboardProps {
 
 export default function ManagerDashboard({ store, role, onBack }: ManagerDashboardProps) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'attendance' | 'salary' | 'staff' | 'interview' | 'history' | 'reports' | 'settings'>('attendance');
+  const [activeTab, setActiveTab] = useState<'attendance' | 'salary' | 'staff' | 'interview' | 'history' | 'reports' | 'images' | 'settings'>('attendance');
   
   const { data: todayRecords, refetch } = useQuery({
     queryKey: ['todayRecords', store.id],
@@ -155,6 +156,16 @@ export default function ManagerDashboard({ store, role, onBack }: ManagerDashboa
               日報一覧
             </button>
             <button
+              onClick={() => setActiveTab('images')}
+              className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+                activeTab === 'images'
+                  ? 'bg-background-sub text-text-main'
+                  : 'text-text-sub hover:text-text-main'
+              }`}
+            >
+              画像
+            </button>
+            <button
               onClick={() => setActiveTab('settings')}
               className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
                 activeTab === 'settings'
@@ -278,6 +289,9 @@ export default function ManagerDashboard({ store, role, onBack }: ManagerDashboa
         )}
         {activeTab === 'reports' && (
           <DailyReportList store={store} role={role} />
+        )}
+        {activeTab === 'images' && (
+          <ImagesGallery store={store} role={role} />
         )}
         {activeTab === 'settings' && (
           <Settings store={store} role={role} />

@@ -240,7 +240,7 @@ export default function MyDailyReports({ store }: MyDailyReportsProps) {
                   <div
                     key={report.id}
                     className={`rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md ${
-                      report.comments && report.comments.length > 0 
+                      report.comments && report.comments.some((c: any) => c.hasBonus) 
                         ? 'sparkle-card' 
                         : 'bg-background-sub'
                     }`}

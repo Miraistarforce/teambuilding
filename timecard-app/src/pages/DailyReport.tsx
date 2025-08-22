@@ -8,7 +8,7 @@ import { API_BASE_URL } from '../config/api';
 
 interface ReportField {
   id: string;
-  type: 'text' | 'rating';
+  type: 'text' | 'rating' | 'image';
   title: string;
   placeholder?: string;
   required?: boolean;
@@ -23,6 +23,7 @@ export default function DailyReport({ store }: DailyReportProps) {
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [reportContent, setReportContent] = useState('');
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [imageFiles, setImageFiles] = useState<Record<string, File>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [useNewFormat, setUseNewFormat] = useState(false);
@@ -56,6 +57,8 @@ export default function DailyReport({ store }: DailyReportProps) {
       reportFormat.fields.forEach((field: ReportField) => {
         if (field.type === 'rating') {
           initialData[field.id] = 3; // デフォルト値
+        } else if (field.type === 'image') {
+          initialData[field.id] = null;
         } else {
           initialData[field.id] = '';
         }
@@ -68,33 +71,75 @@ export default function DailyReport({ store }: DailyReportProps) {
     mutationFn: async () => {
       setIsSubmitting(true);
       
-      const response = await axios.post(
-        `${API_BASE_URL}/daily-reports`,
-        {
-          staffId: selectedStaffId,
-          storeId: store.id,
-          content: useNewFormat ? JSON.stringify(formData) : reportContent,
-          formData: useNewFormat ? formData : null,
-          date: new Date().toISOString(),
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
-          },
-        }
-      );
+      // Check if we have images to upload
+      const hasImages = Object.keys(imageFiles).length > 0;
       
-      // テンション分析を実行
-      const reportText = useNewFormat 
-        ? Object.values(formData).filter(v => typeof v === 'string').join(' ')
-        : reportContent;
-      
-      try {
-        await axios.post(
-          `${API_BASE_URL}/tension/analyze`,
+      if (hasImages) {
+        // Use FormData for image uploads
+        const formDataPayload = new FormData();
+        formDataPayload.append('staffId', String(selectedStaffId));
+        formDataPayload.append('storeId', String(store.id));
+        formDataPayload.append('date', new Date().toISOString());
+        
+        // Add text data
+        const textData = { ...formData };
+        // Add image filenames to formData
+        Object.keys(imageFiles).forEach(fieldId => {
+          textData[fieldId] = `image_${fieldId}_${Date.now()}.jpg`;
+        });
+        
+        formDataPayload.append('content', useNewFormat ? JSON.stringify(textData) : reportContent);
+        formDataPayload.append('formData', JSON.stringify(useNewFormat ? textData : null));
+        
+        // Add image files
+        Object.entries(imageFiles).forEach(([fieldId, file]) => {
+          formDataPayload.append(`image_${fieldId}`, file);
+        });
+        
+        const response = await axios.post(
+          `${API_BASE_URL}/daily-reports/with-images`,
+          formDataPayload,
           {
-            reportId: response.data.id,
-            text: reportText
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+        
+        // テンション分析を実行
+        const reportText = useNewFormat 
+          ? Object.values(formData).filter(v => typeof v === 'string').join(' ')
+          : reportContent;
+        
+        try {
+          await axios.post(
+            `${API_BASE_URL}/tension/analyze`,
+            {
+              reportId: response.data.id,
+              text: reportText
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
+              },
+            }
+          );
+        } catch (error) {
+          console.error('テンション分析エラー:', error);
+        }
+        
+        return response.data;
+      } else {
+        // Regular submission without images
+        const response = await axios.post(
+          `${API_BASE_URL}/daily-reports`,
+          {
+            staffId: selectedStaffId,
+            storeId: store.id,
+            content: useNewFormat ? JSON.stringify(formData) : reportContent,
+            formData: useNewFormat ? formData : null,
+            date: new Date().toISOString(),
           },
           {
             headers: {
@@ -102,12 +147,31 @@ export default function DailyReport({ store }: DailyReportProps) {
             },
           }
         );
-      } catch (error) {
-        console.error('テンション分析エラー:', error);
-        // テンション分析に失敗しても日報送信は成功とする
+        
+        // テンション分析を実行
+        const reportText = useNewFormat 
+          ? Object.values(formData).filter(v => typeof v === 'string').join(' ')
+          : reportContent;
+        
+        try {
+          await axios.post(
+            `${API_BASE_URL}/tension/analyze`,
+            {
+              reportId: response.data.id,
+              text: reportText
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
+              },
+            }
+          );
+        } catch (error) {
+          console.error('テンション分析エラー:', error);
+        }
+        
+        return response.data;
       }
-      
-      return response.data;
     },
     onSuccess: () => {
       setIsSubmitting(false);
@@ -120,11 +184,14 @@ export default function DailyReport({ store }: DailyReportProps) {
         reportFormat.fields.forEach((field: ReportField) => {
           if (field.type === 'rating') {
             resetData[field.id] = 3;
+          } else if (field.type === 'image') {
+            resetData[field.id] = null;
           } else {
             resetData[field.id] = '';
           }
         });
         setFormData(resetData);
+        setImageFiles({}); // Clear image files
       }
       
       // 3秒後にメッセージを消す
@@ -256,6 +323,44 @@ export default function DailyReport({ store }: DailyReportProps) {
                   </>
                 ) : field.type === 'rating' ? (
                   renderStarRating(field)
+                ) : field.type === 'image' ? (
+                  <div className="space-y-2">
+                    {formData[field.id] && (
+                      <div className="text-sm text-text-sub">
+                        コメント: {formData[field.id]}
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      value={formData[field.id] || ''}
+                      onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                      placeholder="画像についてのコメント（任意）"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary"
+                      disabled={isSubmitting}
+                    />
+                    <div className="border-2 border-dashed border-border-default rounded-lg p-4">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setImageFiles({ ...imageFiles, [field.id]: file });
+                          }
+                        }}
+                        className="w-full"
+                        disabled={isSubmitting}
+                      />
+                      {imageFiles[field.id] && (
+                        <p className="mt-2 text-sm text-text-sub">
+                          選択済み: {imageFiles[field.id].name}
+                        </p>
+                      )}
+                    </div>
+                    {field.placeholder && (
+                      <p className="text-xs text-text-sub">{field.placeholder}</p>
+                    )}
+                  </div>
                 ) : null}
               </div>
             ))}
