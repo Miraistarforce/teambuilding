@@ -4,23 +4,12 @@ import { authenticate } from '../middlewares/auth';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { uploadImage, deleteImage, getPublicUrl } from '../lib/supabase';
 
 const router = Router();
 
-// Configure multer for image uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/daily-reports');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Configure multer for image uploads (now using memory storage for Supabase)
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
   storage,
@@ -123,17 +112,25 @@ router.post('/with-images', authenticate, upload.any(), async (req, res) => {
     let formDataObj = formDataString ? JSON.parse(formDataString) : null;
     
     if (formDataObj && files) {
-      // Map uploaded files to their field IDs
-      files.forEach(file => {
+      // Upload files to Supabase Storage
+      for (const file of files) {
         const fieldMatch = file.fieldname.match(/^image_(.+)$/);
         if (fieldMatch) {
           const fieldId = fieldMatch[1];
-          // Store the URL path for the image (replacing the placeholder)
-          if (formDataObj[fieldId] === 'pending_upload') {
-            formDataObj[fieldId] = `/uploads/daily-reports/${file.filename}`;
+          
+          // Generate unique filename
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const fileName = `${uniqueSuffix}${path.extname(file.originalname)}`;
+          
+          // Upload to Supabase
+          const uploadPath = await uploadImage(file.buffer, fileName, file.mimetype);
+          
+          if (uploadPath && formDataObj[fieldId] === 'pending_upload') {
+            // Store the Supabase Storage path
+            formDataObj[fieldId] = uploadPath;
           }
         }
-      });
+      }
     }
 
     // Check for existing report
@@ -246,11 +243,21 @@ router.get('/list', authenticate, async (req, res) => {
       },
     });
 
-    // formDataがある場合はパースする
-    const parsedReports = reports.map(report => ({
-      ...report,
-      formData: report.formData ? JSON.parse(report.formData) : null,
-    }));
+    // formDataがある場合はパースして、画像URLをSupabase Public URLに変換
+    const parsedReports = reports.map(report => {
+      if (report.formData) {
+        const formData = JSON.parse(report.formData);
+        // Convert image paths to public URLs
+        for (const key in formData) {
+          const value = formData[key];
+          if (typeof value === 'string' && value.length > 0 && !value.startsWith('http') && !value.startsWith('/')) {
+            formData[key] = getPublicUrl(value);
+          }
+        }
+        return { ...report, formData };
+      }
+      return { ...report, formData: null };
+    });
 
     res.json(parsedReports);
   } catch (error) {
@@ -339,11 +346,21 @@ router.get('/all-staff', authenticate, async (req, res) => {
       take: 365, // 最新365件（1年分）
     });
 
-    // formDataがある場合はパースする
-    const parsedReports = reports.map(report => ({
-      ...report,
-      formData: report.formData ? JSON.parse(report.formData) : null,
-    }));
+    // formDataがある場合はパースして、画像URLをSupabase Public URLに変換
+    const parsedReports = reports.map(report => {
+      if (report.formData) {
+        const formData = JSON.parse(report.formData);
+        // Convert image paths to public URLs
+        for (const key in formData) {
+          const value = formData[key];
+          if (typeof value === 'string' && value.length > 0 && !value.startsWith('http') && !value.startsWith('/')) {
+            formData[key] = getPublicUrl(value);
+          }
+        }
+        return { ...report, formData };
+      }
+      return { ...report, formData: null };
+    });
 
     // 日報フォーマットも取得
     const reportFormat = await prisma.dailyReportFormat.findUnique({
@@ -376,13 +393,11 @@ router.delete('/images/:imageUrl(*)', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Permission denied' });
     }
 
-    // 画像URLから実際のファイルパスを取得
-    const fileName = imageUrl.split('/').pop();
-    const filePath = path.join(__dirname, '../../uploads/daily-reports', fileName || '');
-
-    // ファイルを削除
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Supabase Storageから削除
+    const deleted = await deleteImage(imageUrl);
+    
+    if (!deleted) {
+      console.warn('Failed to delete from Supabase Storage:', imageUrl);
     }
 
     // データベースから画像URLを削除
@@ -400,7 +415,7 @@ router.delete('/images/:imageUrl(*)', authenticate, async (req, res) => {
       if (report.formData) {
         const formData = JSON.parse(report.formData);
         for (const key in formData) {
-          if (formData[key] === `/uploads/daily-reports/${fileName}`) {
+          if (formData[key] === imageUrl) {
             formData[key] = '';
           }
         }
@@ -455,16 +470,19 @@ router.get('/images', authenticate, async (req, res) => {
       if (report.formData) {
         const formData = JSON.parse(report.formData);
         
-        // Check each field for image URLs
+        // Check each field for image paths (now Supabase Storage paths)
         Object.entries(formData).forEach(([fieldId, value]) => {
-          if (typeof value === 'string' && value.startsWith('/uploads/daily-reports/')) {
+          if (typeof value === 'string' && value.length > 0 && !value.startsWith('http')) {
+            // Generate public URL for Supabase Storage
+            const publicUrl = getPublicUrl(value);
             images.push({
               id: `${report.id}_${fieldId}`,
               reportId: report.id,
               staffName: report.staff.name,
               date: report.date,
               createdAt: report.createdAt,
-              imageUrl: value,
+              imageUrl: publicUrl,
+              imagePath: value,  // Store the path for deletion
               comment: formData[`${fieldId}_comment`] || '',
             });
           }
