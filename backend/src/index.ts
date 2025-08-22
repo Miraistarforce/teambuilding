@@ -35,7 +35,7 @@ app.set('trust proxy', 1);
 // CORS設定
 const corsOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : ['http://localhost:4000', 'http://localhost:4001', 'http://localhost:4002'];
+  : ['http://localhost:4000', 'http://localhost:4001', 'http://localhost:4002', 'http://localhost:4003', 'http://localhost:4004'];
 
 // セキュリティ設定
 app.use(helmet({
