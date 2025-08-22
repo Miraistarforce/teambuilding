@@ -226,7 +226,7 @@ export default function DailyReportList({ store }: DailyReportListProps) {
                       </span>
                     )}
                     {report.formData && (() => {
-                      const formData = JSON.parse(report.formData);
+                      const formData = typeof report.formData === 'string' ? JSON.parse(report.formData) : report.formData;
                       const hasImage = Object.values(formData).some(
                         (value: any) => typeof value === 'string' && value.startsWith('/uploads/daily-reports/')
                       );
