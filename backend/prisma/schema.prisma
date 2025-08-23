@@ -27,7 +27,7 @@ model Store {
   ownerPassword   String
   bonusEnabled    Boolean  @default(true)  // 賞与プレゼント機能の有効/無効
   isActive        Boolean  @default(true)
-  qrEnabled       Boolean  @default(true)  // QRコードURLの有効/無効
+  qrEnabled       Boolean  @default(true)  // QRコードURLの有効/無効  
   qrToken         String?  @unique         // QRコード用のトークン
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

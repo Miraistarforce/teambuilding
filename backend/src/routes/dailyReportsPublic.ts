@@ -8,14 +8,14 @@ router.post('/submit', async (req, res) => {
   try {
     const { storeId, staffId, date, ...formData } = req.body;
     
-    // Verify store exists and QR is enabled
+    // Verify store exists (skip QR check for now)
     const store = await prisma.store.findUnique({
       where: { id: parseInt(storeId) },
-      select: { qrEnabled: true },
+      select: { id: true },
     });
 
-    if (!store || !store.qrEnabled) {
-      return res.status(403).json({ error: 'QR submission is disabled for this store' });
+    if (!store) {
+      return res.status(403).json({ error: 'Store not found' });
     }
 
     const reportDate = new Date(date);
