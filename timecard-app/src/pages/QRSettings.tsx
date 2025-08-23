@@ -184,7 +184,6 @@ export default function QRSettings({ store, onBack }: QRSettingsProps) {
                     value={qrUrl}
                     size={256}
                     level="H"
-                    includeMargin={true}
                   />
                   <p className="text-center mt-4 text-sm font-semibold">{store.name}</p>
                   <p className="text-center text-xs text-gray-500">日報提出用</p>

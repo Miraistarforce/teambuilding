@@ -79,13 +79,6 @@ export default function DailyReportPublic() {
 
     setSubmitting(true);
     try {
-      // Create a simple token for this submission
-      const simpleToken = btoa(JSON.stringify({ 
-        storeId: storeInfo.storeId, 
-        staffId: selectedStaffId,
-        timestamp: Date.now()
-      }));
-
       await axios.post(`${API_BASE_URL}/daily-reports-public/submit`, {
         storeId: storeInfo.storeId,
         staffId: selectedStaffId,
