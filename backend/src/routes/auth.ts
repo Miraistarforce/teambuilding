@@ -74,13 +74,25 @@ router.post('/store/login', async (req, res, next) => {
       throw new AppError('Invalid company', 404);
     }
 
-    const store = await prisma.store.findFirst({
-      where: {
-        companyId: company.id,
-        name: storeName,
-        isActive: true
-      }
-    });
+    let store;
+    try {
+      store = await prisma.store.findFirst({
+        where: {
+          companyId: company.id,
+          name: storeName,
+          isActive: true
+        }
+      });
+    } catch (dbError: any) {
+      console.error('Database query error:', dbError);
+      // Try without isActive if column doesn't exist
+      store = await prisma.store.findFirst({
+        where: {
+          companyId: company.id,
+          name: storeName
+        }
+      });
+    }
 
     if (!store) {
       throw new AppError('Invalid store', 404);
@@ -120,7 +132,8 @@ router.post('/store/login', async (req, res, next) => {
         companyId: company.id
       }
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Store login error detail:', error.message, error.stack);
     next(error);
   }
 });
