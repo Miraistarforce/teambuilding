@@ -136,6 +136,7 @@ app.use('/api/time-records', timeRecordRoutes);
 app.use('/api/daily-reports', dailyReportsRoutes);
 app.use('/api/report-format', reportFormatRoutes);
 app.use('/api/tension', tensionRoutes);
+app.use('/api/comment-templates', commentTemplatesRoutes);
 
 // 面談関連ルートもCSRF保護なし
 app.use('/api/interviews', interviewsRoutes);
@@ -148,7 +149,6 @@ app.use('/api/companies', companyRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/reports', reportsRoutes);
-app.use('/api/comment-templates', commentTemplatesRoutes);
 
 // 404ハンドラー
 app.use(notFoundHandler);
