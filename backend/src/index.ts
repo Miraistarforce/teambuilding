@@ -32,6 +32,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+
 // プロキシ信頼設定（Renderなどのプラットフォーム用）
 app.set('trust proxy', 1);
 
