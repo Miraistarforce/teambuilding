@@ -56,14 +56,10 @@ router.get('/:storeId', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Store not found' });
     }
 
-    // QRトークンがない場合は生成
+    // QRトークンがない場合は生成（ただしDBには保存しない）
     if (!store.qrToken) {
-      const token = crypto.randomBytes(32).toString('hex');
-      await prisma.store.update({
-        where: { id: parseInt(storeId) },
-        data: { qrToken: token },
-      });
-      store.qrToken = token;
+      // 店舗IDベースで常に同じトークンを生成（DBに保存できないため）
+      store.qrToken = crypto.createHash('sha256').update(`store-${storeId}-qr-token`).digest('hex');
     }
 
     res.json(store);
@@ -154,8 +150,8 @@ router.get('/public/:token', async (req, res) => {
   try {
     const { token } = req.params;
 
-    // For now, since qrToken might not exist in DB, find store by token in a different way
-    // This is a temporary solution - just return first store with its staff
+    // トークンから店舗IDを逆算（同じハッシュアルゴリズムを使用）
+    // 全店舗を取得してトークンをチェック
     const stores = await prisma.store.findMany({
       select: {
         id: true,
@@ -169,32 +165,39 @@ router.get('/public/:token', async (req, res) => {
       },
     });
 
-    // Try to find format separately
-    let format = null;
-    if (stores.length > 0) {
-      try {
-        const storeWithFormat = await prisma.store.findFirst({
-          where: { id: stores[0].id },
-          select: {
-            dailyReportFormat: true,
-          },
-        });
-        format = storeWithFormat?.dailyReportFormat;
-      } catch (e) {
-        // Format table might not exist
+    // トークンに一致する店舗を探す
+    let matchedStore = null;
+    for (const store of stores) {
+      const expectedToken = crypto.createHash('sha256').update(`store-${store.id}-qr-token`).digest('hex');
+      if (expectedToken === token) {
+        matchedStore = store;
+        break;
       }
     }
 
-    if (stores.length === 0) {
+    if (!matchedStore) {
       return res.status(404).json({ error: 'Invalid or disabled QR code' });
     }
 
-    // Return the first store for now
+    // Try to find format separately
+    let format = null;
+    try {
+      const storeWithFormat = await prisma.store.findFirst({
+        where: { id: matchedStore.id },
+        select: {
+          dailyReportFormat: true,
+        },
+      });
+      format = storeWithFormat?.dailyReportFormat;
+    } catch (e) {
+      // Format table might not exist
+    }
+
     res.json({
-      storeId: stores[0].id,
-      storeName: stores[0].name,
+      storeId: matchedStore.id,
+      storeName: matchedStore.name,
       format: format,
-      staff: stores[0].staff,
+      staff: matchedStore.staff,
     });
   } catch (error) {
     console.error('QR公開情報取得エラー:', error);
