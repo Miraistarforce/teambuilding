@@ -20,7 +20,7 @@ export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
 
 // Storage bucket names
 export const STORAGE_BUCKET = 'daily-reports';
-export const INTERVIEW_BUCKET = 'interview-pdfs';
+export const INTERVIEW_BUCKET = 'daily-reports'; // Use same bucket for PDFs
 
 // Helper functions for storage operations
 export const uploadImage = async (
@@ -80,9 +80,11 @@ export const uploadPdf = async (
   fileName: string
 ): Promise<string | null> => {
   try {
+    // PDFを専用フォルダに保存
+    const pdfPath = `interview-pdfs/${fileName}`;
     const { data, error } = await supabase.storage
       .from(INTERVIEW_BUCKET)
-      .upload(fileName, file, {
+      .upload(pdfPath, file, {
         contentType: 'application/pdf',
         upsert: false,
       });
