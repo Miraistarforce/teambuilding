@@ -37,8 +37,13 @@ router.post('/', authenticate, async (req, res) => {
     const { storeId, template } = req.body;
     const user = (req as any).user;
 
+    // デバッグログ
+    console.log('POST /comment-templates - user:', user);
+    console.log('POST /comment-templates - body:', req.body);
+
     // 権限チェック（manager/ownerのみ）
     if (user.role !== 'manager' && user.role !== 'owner') {
+      console.log('Permission denied - user role:', user.role);
       return res.status(403).json({ error: 'Permission denied' });
     }
 

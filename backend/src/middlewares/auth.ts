@@ -15,7 +15,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     }
 
     const decoded = verifyToken(token);
-    req.user = decoded;
+    (req as any).user = decoded; // 型の問題を回避
     next();
   } catch (error) {
     next(new AppError('Invalid token', 401));
