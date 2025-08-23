@@ -26,35 +26,42 @@ export default function Interview({ store }: InterviewProps) {
   // 面談記録を処理
   const processMutation = useMutation({
     mutationFn: async () => {
-      setIsProcessing(true);
-      const formData = new FormData();
-      formData.append('staffId', String(selectedStaffId));
-      formData.append('storeId', String(store.id));
-      formData.append('text', textInput);
-      if (audioFile) {
-        formData.append('audio', audioFile);
-      }
-      if (pdfFile) {
-        formData.append('pdf', pdfFile);
-      }
+      try {
+        setIsProcessing(true);
+        const formData = new FormData();
+        formData.append('staffId', String(selectedStaffId));
+        formData.append('storeId', String(store.id));
+        formData.append('text', textInput);
+        if (audioFile) {
+          formData.append('audio', audioFile);
+        }
+        if (pdfFile) {
+          formData.append('pdf', pdfFile);
+        }
 
-      const response = await axios.post(`${API_BASE_URL}/interviews/process`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
-        },
-      });
+        const response = await axios.post(`${API_BASE_URL}/interviews/process`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
+          },
+        });
 
-      return response.data;
+        return response.data;
+      } catch (error) {
+        console.error('処理エラー詳細:', error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
       setSummary(data.summary || []);
       setIsProcessing(false);
+      alert('面談を記録しました');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('処理エラー:', error);
       setIsProcessing(false);
-      alert('処理中にエラーが発生しました');
+      const message = error.response?.data?.error || error.message || '処理中にエラーが発生しました';
+      alert(`エラー: ${message}`);
     },
   });
 
@@ -106,8 +113,8 @@ export default function Interview({ store }: InterviewProps) {
       alert('スタッフを選択してください');
       return;
     }
-    if (!textInput && !audioFile) {
-      alert('テキストを入力するか、音声ファイルをアップロードしてください');
+    if (!textInput && !audioFile && !pdfFile) {
+      alert('テキストを入力するか、ファイルをアップロードしてください');
       return;
     }
     processMutation.mutate();
