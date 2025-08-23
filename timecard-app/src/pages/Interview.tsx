@@ -12,6 +12,7 @@ interface InterviewProps {
 export default function Interview({ store }: InterviewProps) {
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState('');
   const [summary, setSummary] = useState<string[]>([]);
   const [advice, setAdvice] = useState<string[]>([]);
@@ -32,6 +33,9 @@ export default function Interview({ store }: InterviewProps) {
       formData.append('text', textInput);
       if (audioFile) {
         formData.append('audio', audioFile);
+      }
+      if (pdfFile) {
+        formData.append('pdf', pdfFile);
       }
 
       const response = await axios.post(`${API_BASE_URL}/interviews/process`, formData, {
@@ -157,6 +161,30 @@ export default function Interview({ store }: InterviewProps) {
             {audioFile && (
               <p className="mt-2 text-sm text-text-sub">
                 選択済み: {audioFile.name}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* PDFファイルアップロード */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium mb-2">面談PDFアップロード（オプション）</label>
+          <div className="border-2 border-dashed border-border-default rounded-lg p-4">
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setPdfFile(file);
+                }
+              }}
+              className="w-full"
+              id="pdf-upload"
+            />
+            {pdfFile && (
+              <p className="mt-2 text-sm text-text-sub">
+                選択済み: {pdfFile.name}
               </p>
             )}
           </div>

@@ -18,8 +18,9 @@ export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
   },
 });
 
-// Storage bucket name
+// Storage bucket names
 export const STORAGE_BUCKET = 'daily-reports';
+export const INTERVIEW_BUCKET = 'interview-pdfs';
 
 // Helper functions for storage operations
 export const uploadImage = async (
@@ -65,12 +66,37 @@ export const deleteImage = async (path: string): Promise<boolean> => {
   }
 };
 
-export const getPublicUrl = (path: string): string => {
+export const getPublicUrl = (path: string, bucket: string = STORAGE_BUCKET): string => {
   const { data } = supabase.storage
-    .from(STORAGE_BUCKET)
+    .from(bucket)
     .getPublicUrl(path);
   
   return data.publicUrl;
+};
+
+// Upload PDF to interview bucket
+export const uploadPdf = async (
+  file: Buffer,
+  fileName: string
+): Promise<string | null> => {
+  try {
+    const { data, error } = await supabase.storage
+      .from(INTERVIEW_BUCKET)
+      .upload(fileName, file, {
+        contentType: 'application/pdf',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('PDF upload error:', error);
+      return null;
+    }
+
+    return data.path;
+  } catch (error) {
+    console.error('PDF upload exception:', error);
+    return null;
+  }
 };
 
 // List images older than specified days

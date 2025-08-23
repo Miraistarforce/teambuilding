@@ -17,6 +17,9 @@ interface InterviewRecord {
   summary: string[];
   advice: string[];
   createdBy: string;
+  pdfUrl?: string | null;
+  audioUrl?: string | null;
+  textContent?: string | null;
 }
 
 export default function InterviewHistory({ store }: InterviewHistoryProps) {
@@ -130,6 +133,9 @@ export default function InterviewHistory({ store }: InterviewHistoryProps) {
                       {interview.advice.length > 0 && (
                         <span>アドバイス: {interview.advice.length}項目</span>
                       )}
+                      {interview.pdfUrl && (
+                        <span className="text-accent-primary font-medium">📄 PDFあり</span>
+                      )}
                     </div>
                   </div>
                   
@@ -172,7 +178,7 @@ export default function InterviewHistory({ store }: InterviewHistoryProps) {
 
                     {/* アドバイス */}
                     {interview.advice.length > 0 && (
-                      <div>
+                      <div className="mb-4">
                         <h4 className="text-sm font-semibold mb-2">次回の確認ポイント</h4>
                         <ul className="space-y-1">
                           {interview.advice.map((item, index) => (
@@ -182,6 +188,24 @@ export default function InterviewHistory({ store }: InterviewHistoryProps) {
                             </li>
                           ))}
                         </ul>
+                      </div>
+                    )}
+
+                    {/* PDFリンク */}
+                    {interview.pdfUrl && (
+                      <div className="mt-4 pt-4 border-t">
+                        <h4 className="text-sm font-semibold mb-2">添付資料</h4>
+                        <a
+                          href={interview.pdfUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-accent-primary text-white rounded-lg hover:opacity-90 transition-opacity text-sm"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          PDFを表示
+                        </a>
                       </div>
                     )}
                   </div>

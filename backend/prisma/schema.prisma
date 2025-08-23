@@ -101,6 +101,7 @@ model Interview {
   staffId      Int
   storeId      Int
   audioUrl     String?    // 音声ファイルのURL
+  pdfUrl       String?    // PDFファイルのURL
   textContent  String?    // テキスト内容
   summary      String?    // AI要約
   advice       String?    // 次回アドバイス

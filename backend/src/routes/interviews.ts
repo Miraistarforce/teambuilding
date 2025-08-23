@@ -10,32 +10,21 @@ import {
   transcribeAudio,
   isOpenAIEnabled 
 } from '../services/openaiService';
+import { uploadPdf, getPublicUrl, INTERVIEW_BUCKET } from '../lib/supabase';
 
 const router = Router();
 
-// ファイルアップロード設定
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/interviews');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// ファイルアップロード設定（メモリストレージ for Supabase）
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
   storage,
   fileFilter: (req, file, cb) => {
-    // 音声ファイルのみ許可
-    if (file.mimetype.startsWith('audio/')) {
+    // 音声ファイルとPDFを許可
+    if (file.mimetype.startsWith('audio/') || file.mimetype === 'application/pdf') {
       cb(null, true);
     } else {
-      cb(new Error('音声ファイルのみアップロード可能です'));
+      cb(new Error('音声ファイルまたはPDFのみアップロード可能です'));
     }
   },
   limits: {
@@ -111,10 +100,15 @@ function generateAdvice(summary: string[]): string[] {
 }
 
 // 面談内容を処理
-router.post('/process', authenticate, upload.single('audio'), async (req, res) => {
+router.post('/process', authenticate, upload.fields([
+  { name: 'audio', maxCount: 1 },
+  { name: 'pdf', maxCount: 1 }
+]), async (req, res) => {
   try {
     const { staffId, storeId, text } = req.body;
-    const audioFile = req.file;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const audioFile = files.audio ? files.audio[0] : null;
+    const pdfFile = files.pdf ? files.pdf[0] : null;
     const user = (req as any).user;
 
     // 権限チェック（manager/ownerのみ）
@@ -124,6 +118,7 @@ router.post('/process', authenticate, upload.single('audio'), async (req, res) =
 
     let textContent = text || '';
     let audioUrl = null;
+    let pdfUrl = null;
 
     // 音声ファイルがある場合
     if (audioFile) {
@@ -152,6 +147,18 @@ router.post('/process', authenticate, upload.single('audio'), async (req, res) =
       }
     }
 
+    // PDFファイルがある場合
+Supabaseにアップロード
+    if (pdfFile) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const fileName = `${uniqueSuffix}.pdf`;
+      const uploadPath = await uploadPdf(pdfFile.buffer, fileName);
+      
+      if (uploadPath) {
+        pdfUrl = uploadPath;
+      }
+    }
+
     // AI要約を生成（OpenAI APIが有効な場合は使用）
     let summaryArray: string[];
     if (isOpenAIEnabled()) {
@@ -176,6 +183,7 @@ router.post('/process', authenticate, upload.single('audio'), async (req, res) =
         staffId: parseInt(staffId),
         storeId: parseInt(storeId),
         audioUrl,
+        pdfUrl,
         textContent,
         summary: summaryText,
         createdBy: user.role,
@@ -265,14 +273,18 @@ router.get('/history/:staffId', authenticate, async (req, res) => {
         summary: true,
         advice: true,
         createdBy: true,
+        pdfUrl: true,
+        audioUrl: true,
+        textContent: true,
       },
     });
 
-    // JSON文字列をパース
+    // JSON文字列をパースとURLを変換
     const formattedInterviews = interviews.map(interview => ({
       ...interview,
       summary: interview.summary ? JSON.parse(interview.summary) : [],
       advice: interview.advice ? JSON.parse(interview.advice) : [],
+      pdfUrl: interview.pdfUrl ? getPublicUrl(interview.pdfUrl, INTERVIEW_BUCKET) : null,
     }));
 
     res.json(formattedInterviews);
