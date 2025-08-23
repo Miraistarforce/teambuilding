@@ -16,11 +16,13 @@ import timeRecordRoutes from './routes/timeRecords';
 import reportsRoutes from './routes/reports';
 import interviewsRoutes from './routes/interviews';
 import dailyReportsRoutes from './routes/dailyReports';
+import dailyReportsPublicRoutes from './routes/dailyReportsPublic';
 import commentTemplatesRoutes from './routes/commentTemplates';
 import reportFormatRoutes from './routes/reportFormat';
 import tensionRoutes from './routes/tension';
 import aiConsultRoutes from './routes/aiConsult';
 import healthRoutes from './routes/health';
+import qrSettingsRoutes from './routes/qrSettings';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 import { logger } from './utils/logger';
 import { csrfTokenEndpoint, conditionalCSRFProtection } from './middlewares/csrf';
@@ -134,9 +136,11 @@ app.use('/api/time-records', timeRecordRoutes);
 
 // 日報関連ルートもCSRF保護なし
 app.use('/api/daily-reports', dailyReportsRoutes);
+app.use('/api/daily-reports-public', dailyReportsPublicRoutes);
 app.use('/api/report-format', reportFormatRoutes);
 app.use('/api/tension', tensionRoutes);
 app.use('/api/comment-templates', commentTemplatesRoutes);
+app.use('/api/qr-settings', qrSettingsRoutes);
 
 // 面談関連ルートもCSRF保護なし
 app.use('/api/interviews', interviewsRoutes);

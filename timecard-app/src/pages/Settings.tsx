@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
+import QRSettings from './QRSettings';
 
 interface SettingsProps {
   store: { id: number; name: string };
@@ -23,7 +24,7 @@ interface ReportField {
   maxRating?: number;
 }
 
-type SettingSection = 'main' | 'report-format' | 'comment-templates' | 'tension-alerts' | 'profile';
+type SettingSection = 'main' | 'report-format' | 'comment-templates' | 'tension-alerts' | 'profile' | 'qr-settings';
 
 export default function Settings({ store, role }: SettingsProps) {
   const [currentSection, setCurrentSection] = useState<SettingSection>('main');
@@ -391,6 +392,22 @@ export default function Settings({ store, role }: SettingsProps) {
                   <h3 className="text-lg font-semibold mb-2">⚠️ テンションアラート</h3>
                   <p className="text-sm text-text-sub">
                     スタッフのテンション低下を検知する設定を管理できます
+                  </p>
+                </div>
+                <span className="text-2xl text-text-sub">→</span>
+              </div>
+            </button>
+
+            {/* 日報QR設定カード */}
+            <button
+              onClick={() => setCurrentSection('qr-settings')}
+              className="bg-background-sub p-6 rounded-lg hover:shadow-md transition-shadow text-left"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">📱 日報QR</h3>
+                  <p className="text-sm text-text-sub">
+                    スタッフが日報を簡単に送信できるQRコードを管理できます
                   </p>
                 </div>
                 <span className="text-2xl text-text-sub">→</span>
@@ -785,6 +802,11 @@ export default function Settings({ store, role }: SettingsProps) {
   }
 
   // プロフィール設定画面
+  // QR設定画面
+  if (currentSection === 'qr-settings') {
+    return <QRSettings store={store} onBack={() => setCurrentSection('main')} />;
+  }
+
   if (currentSection === 'profile') {
     return (
       <div className="max-w-4xl mx-auto">

@@ -4,6 +4,7 @@ import StoreSelect from './pages/StoreSelect';
 import RoleSelect from './pages/RoleSelect';
 import StaffDashboard from './pages/StaffDashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
+import DailyReportPublic from './pages/DailyReportPublic';
 import { useState, useEffect } from 'react';
 
 export interface SessionData {
@@ -98,6 +99,10 @@ function App() {
               <Navigate to="/" replace />
             )
           }
+        />
+        <Route
+          path="/daily-report/:token"
+          element={<DailyReportPublic />}
         />
       </Routes>
     </BrowserRouter>
