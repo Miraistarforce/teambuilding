@@ -142,21 +142,28 @@ router.post('/process', authenticate, upload.fields([
       }
     }
 
-    // AI要約を生成（OpenAI APIが有効な場合は使用）
-    let summaryArray: string[];
-    if (isOpenAIEnabled()) {
-      console.log('OpenAI API is enabled, generating AI summary...');
-      try {
-        const aiSummary = await generateInterviewSummary(textContent);
-        summaryArray = aiSummary.summary;
-        console.log('AI summary generated:', summaryArray);
-      } catch (error) {
-        console.error('AI summary generation failed:', error);
+    // AI要約を生成（PDFのみの場合はスキップ）
+    let summaryArray: string[] = [];
+    
+    // PDFのみの場合は要約を生成しない
+    if (pdfFile && !audioFile && !textContent) {
+      summaryArray = ['PDFファイルがアップロードされました'];
+    } else if (textContent || audioFile) {
+      // テキストまたは音声がある場合のみAI要約を生成
+      if (isOpenAIEnabled()) {
+        console.log('OpenAI API is enabled, generating AI summary...');
+        try {
+          const aiSummary = await generateInterviewSummary(textContent);
+          summaryArray = aiSummary.summary;
+          console.log('AI summary generated:', summaryArray);
+        } catch (error) {
+          console.error('AI summary generation failed:', error);
+          summaryArray = generateSummary(textContent);
+        }
+      } else {
+        console.log('OpenAI API is not enabled, using fallback summary');
         summaryArray = generateSummary(textContent);
       }
-    } else {
-      console.log('OpenAI API is not enabled, using fallback summary');
-      summaryArray = generateSummary(textContent);
     }
     const summaryText = JSON.stringify(summaryArray);
 
