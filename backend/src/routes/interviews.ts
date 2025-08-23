@@ -106,9 +106,9 @@ router.post('/process', authenticate, upload.fields([
 ]), async (req, res) => {
   try {
     const { staffId, storeId, text } = req.body;
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    const audioFile = files.audio ? files.audio[0] : null;
-    const pdfFile = files.pdf ? files.pdf[0] : null;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const audioFile = files?.audio ? files.audio[0] : null;
+    const pdfFile = files?.pdf ? files.pdf[0] : null;
     const user = (req as any).user;
 
     // 権限チェック（manager/ownerのみ）
@@ -120,35 +120,18 @@ router.post('/process', authenticate, upload.fields([
     let audioUrl = null;
     let pdfUrl = null;
 
-    // 音声ファイルがある場合
+    // 音声ファイルがある場合（現在はローカル保存のまま）
     if (audioFile) {
-      audioUrl = `/uploads/interviews/${audioFile.filename}`;
+      // TODO: Supabaseへのアップロードに移行
+      audioUrl = null; // 一時的に無効化
       
-      // OpenAI Whisper APIで音声をテキスト化
-      if (isOpenAIEnabled() && !textContent) {
-        console.log('Attempting audio transcription with OpenAI Whisper...');
-        const filePath = path.join(__dirname, '../../uploads/interviews', audioFile.filename);
-        try {
-          const transcribedText = await transcribeAudio(filePath);
-          if (transcribedText) {
-            console.log('Audio transcribed successfully:', transcribedText.substring(0, 100) + '...');
-            textContent = transcribedText;
-          } else {
-            console.log('Transcription returned empty text');
-            textContent = '音声ファイルがアップロードされました。';
-          }
-        } catch (error) {
-          console.error('Audio transcription error:', error);
-          textContent = '音声ファイルがアップロードされました。';
-        }
-      } else if (!textContent) {
-        console.log('No OpenAI API or text provided with audio');
+      // 音声ファイルの処理は一時的にスキップ
+      if (!textContent) {
         textContent = '音声ファイルがアップロードされました。';
       }
     }
 
-    // PDFファイルがある場合
-Supabaseにアップロード
+    // PDFファイルがある場合、Supabaseにアップロード
     if (pdfFile) {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
       const fileName = `${uniqueSuffix}.pdf`;
@@ -194,9 +177,13 @@ Supabaseにアップロード
       id: interview.id,
       summary: summaryArray,
     });
-  } catch (error) {
-    console.error('面談処理エラー:', error);
-    res.status(500).json({ error: '面談の処理に失敗しました' });
+  } catch (error: any) {
+    console.error('面談処理エラー詳細:', error);
+    const errorMessage = error.message || '面談の処理に失敗しました';
+    res.status(500).json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
