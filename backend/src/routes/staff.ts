@@ -141,7 +141,7 @@ router.put('/:id', authenticate, authorizeStore, async (req, res, next) => {
 });
 
 // Get or update employee settings (full-time employee configuration)
-router.get('/:id/employee-settings', authenticate, authorizeStore, async (req, res, next) => {
+router.get('/:id/employee-settings', authenticate, authorizeStore, async (req: AuthRequest, res, next) => {
   try {
     const { id } = req.params;
     const staffId = parseInt(id);
@@ -191,7 +191,7 @@ router.get('/:id/employee-settings', authenticate, authorizeStore, async (req, r
   }
 });
 
-router.put('/:id/employee-settings', authenticate, authorizeStore, async (req, res, next) => {
+router.put('/:id/employee-settings', authenticate, authorizeStore, async (req: AuthRequest, res, next) => {
   try {
     const { id } = req.params;
     const staffId = parseInt(id);
