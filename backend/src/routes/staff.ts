@@ -79,7 +79,17 @@ router.get('/:id', authenticate, async (req, res, next) => {
     const staff = await prisma.staff.findUnique({
       where: { id: parseInt(id) },
       include: {
-        store: true
+        store: {
+          select: {
+            id: true,
+            name: true,
+            companyId: true,
+            isActive: true,
+            bonusEnabled: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        }
       }
     });
     
