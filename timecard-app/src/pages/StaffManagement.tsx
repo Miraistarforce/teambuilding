@@ -34,16 +34,6 @@ interface StaffDetail extends Staff {
   };
 }
 
-interface EmployeeSettings {
-  employeeType: 'hourly' | 'monthly';
-  monthlyBaseSalary: number;
-  scheduledStartTime: string;
-  scheduledEndTime: string;
-  includeEarlyArrivalAsOvertime: boolean;
-  currentHourlyWage: number;
-  overtimeRate: number;
-}
-
 export default function StaffManagement({ store }: StaffManagementProps) {
   const [selectedStaff, setSelectedStaff] = useState<StaffDetail | null>(null);
   const [showCommunicationGuide, setShowCommunicationGuide] = useState(false);
@@ -53,9 +43,6 @@ export default function StaffManagement({ store }: StaffManagementProps) {
   const [consultText, setConsultText] = useState('');
   const [aiAdvice, setAiAdvice] = useState('');
   const [isLoadingAdvice, setIsLoadingAdvice] = useState(false);
-  const [showEmployeeSettings, setShowEmployeeSettings] = useState(false);
-  const [employeeSettings, setEmployeeSettings] = useState<EmployeeSettings | null>(null);
-  const [isSavingEmployeeSettings, setIsSavingEmployeeSettings] = useState(false);
   const queryClient = useQueryClient();
   
   // テンションアラート取得
@@ -249,28 +236,6 @@ export default function StaffManagement({ store }: StaffManagementProps) {
                     <p className="text-xs text-text-sub mt-1">（月給制）</p>
                   )}
                 </div>
-              </div>
-              
-              {/* 正社員設定ボタン */}
-              <div className="mb-6">
-                <button
-                  onClick={async () => {
-                    const token = localStorage.getItem('timecardToken');
-                    try {
-                      const response = await axios.get(
-                        `${API_BASE_URL}/staff/${selectedStaff.id}/employee-settings`,
-                        { headers: { Authorization: `Bearer ${token}` } }
-                      );
-                      setEmployeeSettings(response.data);
-                      setShowEmployeeSettings(true);
-                    } catch (error) {
-                      console.error('Failed to fetch employee settings:', error);
-                    }
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  正社員設定
-                </button>
               </div>
 
               {/* MBTI設定 */}
@@ -550,185 +515,6 @@ export default function StaffManagement({ store }: StaffManagementProps) {
                 <div className="text-sm whitespace-pre-wrap">{aiAdvice}</div>
               </div>
             )}
-          </div>
-        </div>
-      )}
-      
-      {/* 正社員設定モーダル */}
-      {showEmployeeSettings && selectedStaff && employeeSettings && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background-main rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-semibold">
-                {selectedStaff.name}さんの正社員設定
-              </h3>
-              <button
-                onClick={() => {
-                  setShowEmployeeSettings(false);
-                  setEmployeeSettings(null);
-                }}
-                className="text-text-sub hover:text-text-main"
-              >
-                ✕
-              </button>
-            </div>
-            
-            {/* 雇用形態 */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">雇用形態</label>
-              <select
-                value={employeeSettings.employeeType}
-                onChange={(e) => setEmployeeSettings({
-                  ...employeeSettings,
-                  employeeType: e.target.value as 'hourly' | 'monthly'
-                })}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="hourly">時給制</option>
-                <option value="monthly">月給制</option>
-              </select>
-            </div>
-            
-            {employeeSettings.employeeType === 'monthly' && (
-              <>
-                {/* 月給 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">月給</label>
-                  <input
-                    type="number"
-                    value={employeeSettings.monthlyBaseSalary}
-                    onChange={(e) => setEmployeeSettings({
-                      ...employeeSettings,
-                      monthlyBaseSalary: parseInt(e.target.value) || 0
-                    })}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="例: 250000"
-                  />
-                </div>
-                
-                {/* 勤務時間設定 */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">出勤時間</label>
-                    <input
-                      type="time"
-                      value={employeeSettings.scheduledStartTime}
-                      onChange={(e) => setEmployeeSettings({
-                        ...employeeSettings,
-                        scheduledStartTime: e.target.value
-                      })}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">退勤時間</label>
-                    <input
-                      type="time"
-                      value={employeeSettings.scheduledEndTime}
-                      onChange={(e) => setEmployeeSettings({
-                        ...employeeSettings,
-                        scheduledEndTime: e.target.value
-                      })}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-                
-                {/* 残業計算オプション */}
-                <div className="mb-4">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={employeeSettings.includeEarlyArrivalAsOvertime}
-                      onChange={(e) => setEmployeeSettings({
-                        ...employeeSettings,
-                        includeEarlyArrivalAsOvertime: e.target.checked
-                      })}
-                      className="rounded text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm">出勤時間前を残業代にする</span>
-                  </label>
-                  <p className="text-xs text-text-sub mt-1 ml-6">
-                    チェックなしの場合、退勤時間後のみを残業として計算します
-                  </p>
-                </div>
-                
-                {/* 残業倍率 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">
-                    残業倍率（現在: {employeeSettings.overtimeRate}倍）
-                  </label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    value={employeeSettings.overtimeRate}
-                    onChange={(e) => setEmployeeSettings({
-                      ...employeeSettings,
-                      overtimeRate: parseFloat(e.target.value) || 1.25
-                    })}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="例: 1.25"
-                  />
-                </div>
-                
-                {/* 参考情報 */}
-                <div className="p-3 bg-blue-50 rounded-lg mb-4">
-                  <p className="text-sm text-blue-800">
-                    <strong>計算方法：</strong><br/>
-                    時給換算: {formatCurrency(Math.round(employeeSettings.monthlyBaseSalary / 160))}/時間<br/>
-                    （月160時間で計算）
-                  </p>
-                </div>
-              </>
-            )}
-            
-            {employeeSettings.employeeType === 'hourly' && (
-              <div className="p-3 bg-gray-50 rounded-lg mb-4">
-                <p className="text-sm text-gray-700">
-                  現在の時給: {formatCurrency(employeeSettings.currentHourlyWage)}
-                </p>
-              </div>
-            )}
-            
-            {/* 保存ボタン */}
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  setIsSavingEmployeeSettings(true);
-                  try {
-                    const token = localStorage.getItem('timecardToken');
-                    await axios.put(
-                      `${API_BASE_URL}/staff/${selectedStaff.id}/employee-settings`,
-                      employeeSettings,
-                      { headers: { Authorization: `Bearer ${token}` } }
-                    );
-                    // 詳細を再取得
-                    const detail = await fetchStaffDetail(selectedStaff.id);
-                    setSelectedStaff(detail);
-                    setShowEmployeeSettings(false);
-                    setEmployeeSettings(null);
-                  } catch (error) {
-                    console.error('Failed to save employee settings:', error);
-                    alert('保存に失敗しました');
-                  } finally {
-                    setIsSavingEmployeeSettings(false);
-                  }
-                }}
-                disabled={isSavingEmployeeSettings}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {isSavingEmployeeSettings ? '保存中...' : '保存'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowEmployeeSettings(false);
-                  setEmployeeSettings(null);
-                }}
-                className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                キャンセル
-              </button>
-            </div>
           </div>
         </div>
       )}
