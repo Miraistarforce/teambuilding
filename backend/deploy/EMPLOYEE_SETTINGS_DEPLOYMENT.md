@@ -69,7 +69,8 @@ The frontend will deploy automatically when you push to the main branch.
 - **Monthly Employees**: 
   - Base salary for scheduled hours
   - Overtime calculated for hours outside schedule
-  - Hourly rate = Monthly salary ÷ 160 hours
+  - Hourly rate = Monthly salary ÷ (Monthly work days × Daily hours)
+  - Example: ¥250,000 ÷ (20 days × 8 hours) = ¥1,562/hour
 
 ## API Endpoints
 
@@ -79,6 +80,7 @@ Returns current employee settings or defaults:
 {
   "employeeType": "hourly",
   "monthlyBaseSalary": 0,
+  "monthlyWorkDays": 20,
   "scheduledStartTime": "09:00",
   "scheduledEndTime": "18:00",
   "includeEarlyArrivalAsOvertime": false,
@@ -93,6 +95,7 @@ Updates employee settings:
 {
   "employeeType": "monthly",
   "monthlyBaseSalary": 250000,
+  "monthlyWorkDays": 22,
   "scheduledStartTime": "09:00",
   "scheduledEndTime": "18:00",
   "includeEarlyArrivalAsOvertime": true

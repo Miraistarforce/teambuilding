@@ -168,6 +168,7 @@ router.get('/:id/employee-settings', authenticate, async (req, res, next) => {
     const employeeSettings = settings || {
       employeeType: 'hourly',
       monthlyBaseSalary: 0,
+      monthlyWorkDays: 20,
       scheduledStartTime: '09:00',
       scheduledEndTime: '18:00',
       includeEarlyArrivalAsOvertime: false
@@ -190,6 +191,7 @@ router.put('/:id/employee-settings', authenticate, authorizeStore, async (req, r
     const { 
       employeeType,
       monthlyBaseSalary,
+      monthlyWorkDays,
       scheduledStartTime,
       scheduledEndTime,
       includeEarlyArrivalAsOvertime
@@ -208,6 +210,7 @@ router.put('/:id/employee-settings', authenticate, authorizeStore, async (req, r
     const settingsData = {
       employeeType: employeeType || 'hourly',
       monthlyBaseSalary: monthlyBaseSalary || 0,
+      monthlyWorkDays: monthlyWorkDays || 20,
       scheduledStartTime: scheduledStartTime || '09:00',
       scheduledEndTime: scheduledEndTime || '18:00',
       includeEarlyArrivalAsOvertime: includeEarlyArrivalAsOvertime || false
@@ -224,10 +227,16 @@ router.put('/:id/employee-settings', authenticate, authorizeStore, async (req, r
     });
     
     // If monthly, calculate equivalent hourly wage for storage
-    if (employeeType === 'monthly' && monthlyBaseSalary) {
-      // Calculate hourly wage based on monthly salary
-      // Assuming 20 working days, 8 hours per day = 160 hours per month
-      const workHoursPerMonth = 160;
+    if (employeeType === 'monthly' && monthlyBaseSalary && monthlyWorkDays) {
+      // Calculate scheduled start and end time to get daily hours
+      const startTime = scheduledStartTime || '09:00';
+      const endTime = scheduledEndTime || '18:00';
+      const startHour = parseInt(startTime.split(':')[0]);
+      const endHour = parseInt(endTime.split(':')[0]);
+      const dailyHours = endHour - startHour;
+      
+      // Calculate hourly wage based on monthly salary and work days
+      const workHoursPerMonth = monthlyWorkDays * dailyHours;
       const hourlyWageUpdate = Math.round(monthlyBaseSalary / workHoursPerMonth);
       
       await prisma.staff.update({

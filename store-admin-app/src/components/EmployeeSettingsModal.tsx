@@ -11,6 +11,7 @@ interface EmployeeSettingsModalProps {
 interface EmployeeSettings {
   employeeType: 'hourly' | 'monthly';
   monthlyBaseSalary: number;
+  monthlyWorkDays: number;
   scheduledStartTime: string;
   scheduledEndTime: string;
   includeEarlyArrivalAsOvertime: boolean;
@@ -22,6 +23,7 @@ export default function EmployeeSettingsModal({ staffId, staffName, onClose }: E
   const [settings, setSettings] = useState<EmployeeSettings>({
     employeeType: 'hourly',
     monthlyBaseSalary: 0,
+    monthlyWorkDays: 20,
     scheduledStartTime: '09:00',
     scheduledEndTime: '18:00',
     includeEarlyArrivalAsOvertime: false,
@@ -126,6 +128,23 @@ export default function EmployeeSettingsModal({ staffId, staffName, onClose }: E
                 />
               </div>
 
+              {/* 月の勤務日数 */}
+              <div>
+                <label className="block text-sm font-medium mb-2">月の勤務日数</label>
+                <input
+                  type="number"
+                  value={settings.monthlyWorkDays}
+                  onChange={(e) => setSettings({
+                    ...settings,
+                    monthlyWorkDays: parseInt(e.target.value) || 20
+                  })}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="例: 20"
+                  min="1"
+                  max="31"
+                />
+              </div>
+
               {/* 勤務時間設定 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -195,8 +214,20 @@ export default function EmployeeSettingsModal({ staffId, staffName, onClose }: E
               <div className="p-3 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-800">
                   <strong>計算方法：</strong><br/>
-                  時給換算: {formatCurrency(Math.round(settings.monthlyBaseSalary / 160))}/時間<br/>
-                  （月160時間で計算）
+                  {(() => {
+                    const startHour = parseInt(settings.scheduledStartTime.split(':')[0]);
+                    const endHour = parseInt(settings.scheduledEndTime.split(':')[0]);
+                    const dailyHours = endHour - startHour;
+                    const monthlyHours = settings.monthlyWorkDays * dailyHours;
+                    const hourlyWage = monthlyHours > 0 ? Math.round(settings.monthlyBaseSalary / monthlyHours) : 0;
+                    
+                    return (
+                      <>
+                        時給換算: {formatCurrency(hourlyWage)}/時間<br/>
+                        （月{settings.monthlyWorkDays}日 × {dailyHours}時間 = {monthlyHours}時間で計算）
+                      </>
+                    );
+                  })()}
                 </p>
               </div>
             </>

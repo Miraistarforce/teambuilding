@@ -4,6 +4,7 @@ CREATE TABLE "EmployeeSettings" (
     "staffId" INTEGER NOT NULL,
     "employeeType" TEXT NOT NULL DEFAULT 'hourly',
     "monthlyBaseSalary" INTEGER NOT NULL DEFAULT 0,
+    "monthlyWorkDays" INTEGER NOT NULL DEFAULT 20,
     "scheduledStartTime" TEXT NOT NULL DEFAULT '09:00',
     "scheduledEndTime" TEXT NOT NULL DEFAULT '18:00',
     "includeEarlyArrivalAsOvertime" BOOLEAN NOT NULL DEFAULT false,

@@ -73,6 +73,7 @@ model EmployeeSettings {
   staffId                        Int      @unique
   employeeType                   String   @default("hourly") // "hourly" or "monthly"
   monthlyBaseSalary              Int      @default(0)
+  monthlyWorkDays                Int      @default(20) // 月の勤務日数
   scheduledStartTime             String   @default("09:00")
   scheduledEndTime               String   @default("18:00")
   includeEarlyArrivalAsOvertime  Boolean  @default(false)
