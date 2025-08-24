@@ -31,6 +31,8 @@ export default function EmployeeSettingsModal({ staffId, staffName, onClose }: E
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  
+  console.log('EmployeeSettingsModal rendered for staff:', staffId, staffName);
 
   useEffect(() => {
     fetchEmployeeSettings();
