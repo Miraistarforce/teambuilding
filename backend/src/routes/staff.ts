@@ -77,27 +77,28 @@ router.get('/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
     const staff = await prisma.staff.findUnique({
-      where: { id: parseInt(id) },
-      include: {
-        store: {
-          select: {
-            id: true,
-            name: true,
-            companyId: true,
-            isActive: true,
-            bonusEnabled: true,
-            createdAt: true,
-            updatedAt: true
-          }
-        }
-      }
+      where: { id: parseInt(id) }
     });
     
     if (!staff) {
       throw new AppError('Staff not found', 404);
     }
     
-    res.json(staff);
+    // Get store separately to avoid qrEnabled column issue
+    const store = await prisma.store.findUnique({
+      where: { id: staff.storeId },
+      select: {
+        id: true,
+        name: true,
+        companyId: true,
+        isActive: true,
+        bonusEnabled: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+    
+    res.json({ ...staff, store });
   } catch (error) {
     next(error);
   }
