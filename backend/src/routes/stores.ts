@@ -13,7 +13,14 @@ router.get('/', authenticate, authorizeCompany, async (req: AuthRequest, res, ne
 
     const stores = await prisma.store.findMany({
       where: companyId ? { companyId } : undefined,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        companyId: true,
+        isActive: true,
+        bonusEnabled: true,
+        createdAt: true,
+        updatedAt: true,
         company: true,
         _count: {
           select: { staff: true }
@@ -42,6 +49,9 @@ router.post('/', authenticate, authorizeCompany, validateRequest(commonValidatio
       where: {
         companyId: actualCompanyId,
         name
+      },
+      select: {
+        id: true
       }
     });
 
@@ -197,7 +207,12 @@ router.put('/:storeId/change-password', authenticate, async (req: AuthRequest, r
     
     // Get the store to verify current password
     const store = await prisma.store.findUnique({
-      where: { id: parseInt(storeId) }
+      where: { id: parseInt(storeId) },
+      select: {
+        id: true,
+        managerPassword: true,
+        ownerPassword: true
+      }
     });
     
     if (!store) {
