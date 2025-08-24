@@ -191,7 +191,7 @@ export default function DailyReportPublic() {
               className="w-full px-4 py-2 border rounded-lg resize-none"
               rows={1}
             />
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-2">
               <input
                 type="file"
                 accept="image/*"
@@ -201,23 +201,23 @@ export default function DailyReportPublic() {
               />
               <label
                 htmlFor={`image-${field.id}`}
-                className="cursor-pointer block text-center"
+                className="cursor-pointer block text-center py-2"
               >
                 {formData[`${field.id}_preview`] ? (
                   <div>
                     <img 
                       src={formData[`${field.id}_preview`]} 
                       alt="プレビュー" 
-                      className="max-h-32 mx-auto mb-2"
+                      className="max-h-24 mx-auto mb-1"
                     />
                     <p className="text-sm text-blue-600">画像を変更</p>
                   </div>
                 ) : (
-                  <div>
-                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
-                    <p className="mt-2 text-sm text-gray-600">画像を選択</p>
+                    <p className="text-sm text-gray-600">画像を選択</p>
                   </div>
                 )}
               </label>
@@ -378,7 +378,7 @@ export default function DailyReportPublic() {
         </div>
 
         <div className="text-center mt-4 text-sm text-gray-500">
-          Powered by TeamBuilding
+          Powered by チムビル
         </div>
       </div>
     </div>
