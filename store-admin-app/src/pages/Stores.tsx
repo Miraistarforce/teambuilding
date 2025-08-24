@@ -8,7 +8,6 @@ export default function Stores() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingStore, setEditingStore] = useState<any>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<{ [key: string]: boolean }>({});
-  const [storePasswords, setStorePasswords] = useState<{ [key: string]: { manager: string; owner: string } }>({});
   const queryClient = useQueryClient();
 
   const { data: stores, isLoading } = useQuery({
@@ -18,18 +17,8 @@ export default function Stores() {
 
   const createMutation = useMutation({
     mutationFn: storesApi.create,
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stores'] });
-      // 新規作成時のパスワードを保存
-      if (data.id) {
-        setStorePasswords(prev => ({
-          ...prev,
-          [data.id]: {
-            manager: variables.managerPassword,
-            owner: variables.ownerPassword
-          }
-        }));
-      }
       setShowAddForm(false);
     },
   });
