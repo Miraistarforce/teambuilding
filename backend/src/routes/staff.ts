@@ -141,7 +141,7 @@ router.put('/:id', authenticate, authorizeStore, async (req, res, next) => {
 });
 
 // Get or update employee settings (full-time employee configuration)
-router.get('/:id/employee-settings', authenticate, async (req, res, next) => {
+router.get('/:id/employee-settings', authenticate, authorizeStore, async (req, res, next) => {
   try {
     const { id } = req.params;
     const staffId = parseInt(id);
@@ -150,6 +150,7 @@ router.get('/:id/employee-settings', authenticate, async (req, res, next) => {
       where: { id: staffId },
       select: {
         id: true,
+        storeId: true,
         hourlyWage: true,
         overtimeRate: true
       }
@@ -157,6 +158,12 @@ router.get('/:id/employee-settings', authenticate, async (req, res, next) => {
     
     if (!staff) {
       throw new AppError('Staff not found', 404);
+    }
+    
+    // Check if user has access to this staff's store
+    const user = req.user;
+    if (user?.type === 'store' && user.storeId !== staff.storeId) {
+      throw new AppError('Access denied to this staff member', 403);
     }
     
     // Try to get employee settings from the EmployeeSettings table
@@ -199,11 +206,21 @@ router.put('/:id/employee-settings', authenticate, authorizeStore, async (req, r
     
     // Check if staff exists
     const staff = await prisma.staff.findUnique({
-      where: { id: staffId }
+      where: { id: staffId },
+      select: {
+        id: true,
+        storeId: true
+      }
     });
     
     if (!staff) {
       throw new AppError('Staff not found', 404);
+    }
+    
+    // Check if user has access to this staff's store
+    const user = req.user;
+    if (user?.type === 'store' && user.storeId !== staff.storeId) {
+      throw new AppError('Access denied to this staff member', 403);
     }
     
     // Prepare employee settings data
