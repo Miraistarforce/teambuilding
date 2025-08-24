@@ -1,12 +1,31 @@
 import { Router } from 'express';
 import prisma from '../lib/prisma';
+import multer from 'multer';
+import { uploadImage, getPublicUrl } from '../lib/supabase';
 
 const router = Router();
 
+// Configure multer for image uploads
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('画像ファイルのみアップロード可能です'));
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
+
 // 公開日報提出（QRコード経由）
-router.post('/submit', async (req, res) => {
+router.post('/submit', upload.any(), async (req, res) => {
   try {
     const { storeId, staffId, date, ...formData } = req.body;
+    const files = req.files as Express.Multer.File[];
     
     // Verify store exists (skip QR check for now)
     const store = await prisma.store.findUnique({
@@ -20,6 +39,25 @@ router.post('/submit', async (req, res) => {
 
     const reportDate = new Date(date);
     reportDate.setHours(0, 0, 0, 0);
+
+    // Process uploaded images
+    const processedFormData = { ...formData };
+    if (files && files.length > 0) {
+      for (const file of files) {
+        // Extract field name from the file fieldname (e.g., image_field1 -> field1)
+        const fieldName = file.fieldname.replace('image_', '');
+        
+        // Upload to Supabase
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const fileName = `daily-reports/${uniqueSuffix}-${file.originalname}`;
+        const uploadPath = await uploadImage(file.buffer, fileName, file.mimetype);
+        
+        if (uploadPath) {
+          // Store the Supabase path in formData
+          processedFormData[`${fieldName}_image`] = uploadPath;
+        }
+      }
+    }
 
     // Check for existing report
     const existingReport = await prisma.dailyReport.findFirst({
@@ -37,8 +75,8 @@ router.post('/submit', async (req, res) => {
           id: existingReport.id,
         },
         data: {
-          content: formData.content || '',
-          formData: JSON.stringify(formData),
+          content: processedFormData.content || '',
+          formData: JSON.stringify(processedFormData),
           isRead: false,
           updatedAt: new Date(),
         },
@@ -50,8 +88,8 @@ router.post('/submit', async (req, res) => {
           staffId: parseInt(staffId),
           storeId: parseInt(storeId),
           date: reportDate,
-          content: formData.content || '',
-          formData: JSON.stringify(formData),
+          content: processedFormData.content || '',
+          formData: JSON.stringify(processedFormData),
           isRead: false,
         },
       });

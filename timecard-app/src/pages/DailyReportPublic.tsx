@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../config/api';
 
 interface ReportField {
   id: string;
-  type: 'text' | 'rating' | 'number';
+  type: 'text' | 'rating' | 'number' | 'image';
   title: string;
   placeholder?: string;
   maxRating?: number;
@@ -24,6 +24,7 @@ export default function DailyReportPublic() {
   const [storeInfo, setStoreInfo] = useState<any>(null);
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [imageFiles, setImageFiles] = useState<Record<string, File>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -79,15 +80,33 @@ export default function DailyReportPublic() {
 
     setSubmitting(true);
     try {
-      await axios.post(`${API_BASE_URL}/daily-reports-public/submit`, {
-        storeId: storeInfo.storeId,
-        staffId: selectedStaffId,
-        date: new Date().toISOString().split('T')[0],
-        ...formData,
+      // Prepare form data with images
+      const submitData = new FormData();
+      submitData.append('storeId', storeInfo.storeId.toString());
+      submitData.append('staffId', selectedStaffId.toString());
+      submitData.append('date', new Date().toISOString().split('T')[0]);
+      
+      // Add text data
+      Object.keys(formData).forEach(key => {
+        if (!key.endsWith('_preview')) {
+          submitData.append(key, formData[key]);
+        }
+      });
+      
+      // Add image files
+      Object.keys(imageFiles).forEach(key => {
+        submitData.append(`image_${key}`, imageFiles[key]);
+      });
+
+      await axios.post(`${API_BASE_URL}/daily-reports-public/submit`, submitData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
       setSubmitted(true);
       setFormData({});
+      setImageFiles({});
       
       // Reset form after 3 seconds
       setTimeout(() => {
@@ -106,11 +125,25 @@ export default function DailyReportPublic() {
           });
         }
         setFormData(initialData);
+        setImageFiles({});
       }, 3000);
     } catch (err) {
       alert('日報の送信に失敗しました');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleImageChange = (fieldId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFiles({ ...imageFiles, [fieldId]: file });
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, [`${fieldId}_preview`]: reader.result });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -148,6 +181,50 @@ export default function DailyReportPublic() {
           />
         );
       
+      case 'image':
+        return (
+          <div className="space-y-2">
+            <textarea
+              value={formData[field.id] || ''}
+              onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+              placeholder={field.placeholder || 'コメントを入力（任意）'}
+              className="w-full px-4 py-2 border rounded-lg resize-none"
+              rows={1}
+            />
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleImageChange(field.id, e)}
+                className="hidden"
+                id={`image-${field.id}`}
+              />
+              <label
+                htmlFor={`image-${field.id}`}
+                className="cursor-pointer block text-center"
+              >
+                {formData[`${field.id}_preview`] ? (
+                  <div>
+                    <img 
+                      src={formData[`${field.id}_preview`]} 
+                      alt="プレビュー" 
+                      className="max-h-32 mx-auto mb-2"
+                    />
+                    <p className="text-sm text-blue-600">画像を変更</p>
+                  </div>
+                ) : (
+                  <div>
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <p className="mt-2 text-sm text-gray-600">画像を選択</p>
+                  </div>
+                )}
+              </label>
+            </div>
+          </div>
+        );
+      
       default:
         return (
           <textarea
@@ -155,7 +232,7 @@ export default function DailyReportPublic() {
             onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
             placeholder={field.placeholder}
             className="w-full px-4 py-2 border rounded-lg resize-none"
-            rows={3}
+            rows={2}
             required={field.required}
           />
         );
