@@ -14,9 +14,10 @@ interface EditStaffModalProps {
   onSubmit: (data: any) => void;
   onClose: () => void;
   isLoading?: boolean;
+  onOpenEmployeeSettings?: () => void;
 }
 
-export default function EditStaffModal({ staff, onSubmit, onClose, isLoading }: EditStaffModalProps) {
+export default function EditStaffModal({ staff, onSubmit, onClose, isLoading, onOpenEmployeeSettings }: EditStaffModalProps) {
   const [name, setName] = useState(staff.name);
   const [hourlyWage, setHourlyWage] = useState(staff.hourlyWage.toString());
   const [holidayAllowance, setHolidayAllowance] = useState((staff.holidayAllowance || 0).toString());
@@ -186,6 +187,19 @@ export default function EditStaffModal({ staff, onSubmit, onClose, isLoading }: 
               アクティブ状態
             </label>
           </div>
+
+          {/* 正社員設定ボタン */}
+          {onOpenEmployeeSettings && (
+            <div className="border-t pt-4">
+              <button
+                type="button"
+                onClick={onOpenEmployeeSettings}
+                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                正社員設定
+              </button>
+            </div>
+          )}
 
           {error && (
             <div className="text-accent-error text-sm">{error}</div>

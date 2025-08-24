@@ -3,11 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { storesApi, staffApi } from '../lib/api';
 import StaffForm from '../components/StaffForm';
 import EditStaffModal from '../components/EditStaffModal';
+import EmployeeSettingsModal from '../components/EmployeeSettingsModal';
 
 export default function Staff() {
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
+  const [employeeSettingsStaff, setEmployeeSettingsStaff] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: stores } = useQuery({
@@ -179,6 +181,18 @@ export default function Staff() {
           onSubmit={(data) => updateMutation.mutate({ id: editingStaff.id, data })}
           onClose={() => setEditingStaff(null)}
           isLoading={updateMutation.isPending}
+          onOpenEmployeeSettings={() => {
+            setEmployeeSettingsStaff(editingStaff);
+            setEditingStaff(null);
+          }}
+        />
+      )}
+
+      {employeeSettingsStaff && (
+        <EmployeeSettingsModal
+          staffId={employeeSettingsStaff.id}
+          staffName={employeeSettingsStaff.name}
+          onClose={() => setEmployeeSettingsStaff(null)}
         />
       )}
     </div>
