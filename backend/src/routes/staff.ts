@@ -141,6 +141,8 @@ router.put('/:id', authenticate, authorizeStore, async (req, res, next) => {
 });
 
 // Get or update employee settings (full-time employee configuration)
+// 一時的に無効化 - データベース接続問題の調査のため
+/*
 router.get('/:id/employee-settings', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -188,7 +190,9 @@ router.get('/:id/employee-settings', authenticate, async (req, res, next) => {
     next(error);
   }
 });
+*/
 
+/*
 router.put('/:id/employee-settings', authenticate, authorizeStore, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -261,6 +265,7 @@ router.put('/:id/employee-settings', authenticate, authorizeStore, async (req, r
     next(error);
   }
 });
+*/
 
 // Get staff stats (last work, monthly attendance, monthly salary)
 router.get('/:id/stats', authenticate, async (req, res, next) => {
@@ -296,40 +301,6 @@ router.get('/:id/stats', authenticate, async (req, res, next) => {
       }
     });
     
-    // Get staff data including employee settings
-    const staff = await prisma.staff.findUnique({
-      where: { id: staffId },
-      select: {
-        hourlyWage: true,
-        overtimeRate: true,
-        otherAllowance: true,
-        mbtiType: true
-      }
-    });
-    
-    if (!staff) {
-      throw new AppError('Staff not found', 404);
-    }
-    
-    // Parse employee settings
-    let employeeSettings = {
-      employeeType: 'hourly' as 'hourly' | 'monthly',
-      monthlyBaseSalary: 0,
-      scheduledStartTime: '09:00',
-      scheduledEndTime: '18:00',
-      includeEarlyArrivalAsOvertime: false
-    };
-    
-    if (staff.mbtiType) {
-      try {
-        const parsed = JSON.parse(staff.mbtiType);
-        if (parsed.employeeSettings) {
-          employeeSettings = { ...employeeSettings, ...parsed.employeeSettings };
-        }
-      } catch (e) {
-        // Not JSON, it's actual MBTI type
-      }
-    }
     
     // Calculate monthly salary
     const monthRecords = await prisma.timeRecord.findMany({
@@ -341,78 +312,41 @@ router.get('/:id/stats', authenticate, async (req, res, next) => {
         },
         status: { in: ['FINISHED', 'COMPLETED'] },
         clockOut: { not: null }
+      },
+      include: {
+        staff: true
       }
     });
     
     let monthlySalary = 0;
-    
-    if (employeeSettings.employeeType === 'monthly') {
-      // For monthly employees, base salary + overtime
-      monthlySalary = employeeSettings.monthlyBaseSalary || 0;
-      
-      // Calculate overtime
-      const [schedStartHour, schedStartMin] = employeeSettings.scheduledStartTime.split(':').map(Number);
-      const [schedEndHour, schedEndMin] = employeeSettings.scheduledEndTime.split(':').map(Number);
-      const scheduledMinutesPerDay = (schedEndHour * 60 + schedEndMin) - (schedStartHour * 60 + schedStartMin);
-      
-      monthRecords.forEach(record => {
-        if (record.clockIn && record.clockOut) {
-          const clockInTime = new Date(record.clockIn);
-          const clockOutTime = new Date(record.clockOut);
-          
-          // Create scheduled times for this date
-          const schedStart = new Date(record.date);
-          schedStart.setHours(schedStartHour, schedStartMin, 0, 0);
-          const schedEnd = new Date(record.date);
-          schedEnd.setHours(schedEndHour, schedEndMin, 0, 0);
-          
-          let overtimeMinutes = 0;
-          
-          // Calculate early arrival overtime
-          if (employeeSettings.includeEarlyArrivalAsOvertime && clockInTime < schedStart) {
-            overtimeMinutes += (schedStart.getTime() - clockInTime.getTime()) / (1000 * 60);
-          }
-          
-          // Calculate late departure overtime
-          if (clockOutTime > schedEnd) {
-            overtimeMinutes += (clockOutTime.getTime() - schedEnd.getTime()) / (1000 * 60);
-          }
-          
-          // Calculate overtime pay
-          const overtimeRate = staff.overtimeRate || 1.25;
-          const hourlyEquivalent = employeeSettings.monthlyBaseSalary / 160; // 160 hours per month
-          const overtimePay = (overtimeMinutes / 60) * hourlyEquivalent * overtimeRate;
-          
-          monthlySalary += overtimePay;
-        }
-      });
-    } else {
-      // Hourly employees - existing calculation
-      monthRecords.forEach(record => {
-        if (record.workMinutes) {
-          const hourlyWage = staff.hourlyWage;
-          const overtimeRate = staff.overtimeRate || 1.25;
-          const regularMinutes = Math.min(record.workMinutes, 480); // 8 hours
-          const overtimeMinutes = Math.max(0, record.workMinutes - 480);
-          
-          const regularPay = (regularMinutes / 60) * hourlyWage;
-          const overtimePay = (overtimeMinutes / 60) * hourlyWage * overtimeRate;
-          
-          monthlySalary += regularPay + overtimePay;
-        }
-      });
-    }
+    monthRecords.forEach(record => {
+      if (record.workMinutes) {
+        const hourlyWage = record.staff.hourlyWage;
+        const overtimeRate = record.staff.overtimeRate || 1.25;
+        const regularMinutes = Math.min(record.workMinutes, 480); // 8 hours
+        const overtimeMinutes = Math.max(0, record.workMinutes - 480);
+        
+        const regularPay = (regularMinutes / 60) * hourlyWage;
+        const overtimePay = (overtimeMinutes / 60) * hourlyWage * overtimeRate;
+        
+        monthlySalary += regularPay + overtimePay;
+      }
+    });
     
     // Add monthly allowances
-    if (staff.otherAllowance) {
+    const staff = await prisma.staff.findUnique({
+      where: { id: staffId },
+      select: { otherAllowance: true }
+    });
+    
+    if (staff?.otherAllowance) {
       monthlySalary += staff.otherAllowance;
     }
     
     res.json({
       lastWorkDate: lastWork?.date || null,
       monthlyAttendance,
-      monthlySalary: Math.floor(monthlySalary),
-      employeeType: employeeSettings.employeeType
+      monthlySalary: Math.floor(monthlySalary)
     });
   } catch (error) {
     next(error);
