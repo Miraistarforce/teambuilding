@@ -141,17 +141,15 @@ router.put('/:id', authenticate, authorizeStore, async (req, res, next) => {
 });
 
 // Get or update employee settings (full-time employee configuration)
-// 一時的に無効化 - データベース接続問題の調査のため
-/*
 router.get('/:id/employee-settings', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
+    const staffId = parseInt(id);
     
     const staff = await prisma.staff.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: staffId },
       select: {
         id: true,
-        mbtiType: true,
         hourlyWage: true,
         overtimeRate: true
       }
@@ -161,25 +159,19 @@ router.get('/:id/employee-settings', authenticate, async (req, res, next) => {
       throw new AppError('Staff not found', 404);
     }
     
-    // Parse employee settings from mbtiType field (using it as JSON storage)
-    let employeeSettings = {
-      employeeType: 'hourly' as 'hourly' | 'monthly',
+    // Try to get employee settings from the EmployeeSettings table
+    const settings = await prisma.employeeSettings.findUnique({
+      where: { staffId }
+    });
+    
+    // Return settings or defaults
+    const employeeSettings = settings || {
+      employeeType: 'hourly',
       monthlyBaseSalary: 0,
       scheduledStartTime: '09:00',
       scheduledEndTime: '18:00',
       includeEarlyArrivalAsOvertime: false
     };
-    
-    if (staff.mbtiType) {
-      try {
-        const parsed = JSON.parse(staff.mbtiType);
-        if (parsed.employeeSettings) {
-          employeeSettings = { ...employeeSettings, ...parsed.employeeSettings };
-        }
-      } catch (e) {
-        // Not JSON, it's actual MBTI type
-      }
-    }
     
     res.json({
       ...employeeSettings,
@@ -190,12 +182,11 @@ router.get('/:id/employee-settings', authenticate, async (req, res, next) => {
     next(error);
   }
 });
-*/
 
-/*
 router.put('/:id/employee-settings', authenticate, authorizeStore, async (req, res, next) => {
   try {
     const { id } = req.params;
+    const staffId = parseInt(id);
     const { 
       employeeType,
       monthlyBaseSalary,
@@ -204,31 +195,17 @@ router.put('/:id/employee-settings', authenticate, authorizeStore, async (req, r
       includeEarlyArrivalAsOvertime
     } = req.body;
     
-    // Get current staff data
+    // Check if staff exists
     const staff = await prisma.staff.findUnique({
-      where: { id: parseInt(id) },
-      select: {
-        mbtiType: true
-      }
+      where: { id: staffId }
     });
     
     if (!staff) {
       throw new AppError('Staff not found', 404);
     }
     
-    // Parse existing data
-    let existingData: any = {};
-    if (staff.mbtiType) {
-      try {
-        existingData = JSON.parse(staff.mbtiType);
-      } catch (e) {
-        // If it's not JSON, preserve as MBTI
-        existingData = { mbti: staff.mbtiType };
-      }
-    }
-    
-    // Update employee settings
-    const employeeSettings = {
+    // Prepare employee settings data
+    const settingsData = {
       employeeType: employeeType || 'hourly',
       monthlyBaseSalary: monthlyBaseSalary || 0,
       scheduledStartTime: scheduledStartTime || '09:00',
@@ -236,36 +213,34 @@ router.put('/:id/employee-settings', authenticate, authorizeStore, async (req, r
       includeEarlyArrivalAsOvertime: includeEarlyArrivalAsOvertime || false
     };
     
-    existingData.employeeSettings = employeeSettings;
+    // Upsert employee settings
+    const settings = await prisma.employeeSettings.upsert({
+      where: { staffId },
+      update: settingsData,
+      create: {
+        ...settingsData,
+        staffId
+      }
+    });
     
     // If monthly, calculate equivalent hourly wage for storage
-    let hourlyWageUpdate = undefined;
     if (employeeType === 'monthly' && monthlyBaseSalary) {
       // Calculate hourly wage based on monthly salary
       // Assuming 20 working days, 8 hours per day = 160 hours per month
       const workHoursPerMonth = 160;
-      hourlyWageUpdate = Math.round(monthlyBaseSalary / workHoursPerMonth);
+      const hourlyWageUpdate = Math.round(monthlyBaseSalary / workHoursPerMonth);
+      
+      await prisma.staff.update({
+        where: { id: staffId },
+        data: { hourlyWage: hourlyWageUpdate }
+      });
     }
     
-    const updateData: any = {
-      mbtiType: JSON.stringify(existingData)
-    };
-    
-    if (hourlyWageUpdate !== undefined) {
-      updateData.hourlyWage = hourlyWageUpdate;
-    }
-    
-    await prisma.staff.update({
-      where: { id: parseInt(id) },
-      data: updateData
-    });
-    
-    res.json({ success: true, employeeSettings });
+    res.json({ success: true, employeeSettings: settings });
   } catch (error) {
     next(error);
   }
 });
-*/
 
 // Get staff stats (last work, monthly attendance, monthly salary)
 router.get('/:id/stats', authenticate, async (req, res, next) => {

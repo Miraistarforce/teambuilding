@@ -63,8 +63,23 @@ model Staff {
   dailyReports      DailyReport[]
   tensionAnalyses   TensionAnalysis[]
   tensionStats      StaffTensionStats?
+  employeeSettings  EmployeeSettings?
   
   @@unique([storeId, name])
+}
+
+model EmployeeSettings {
+  id                             Int      @id @default(autoincrement())
+  staffId                        Int      @unique
+  employeeType                   String   @default("hourly") // "hourly" or "monthly"
+  monthlyBaseSalary              Int      @default(0)
+  scheduledStartTime             String   @default("09:00")
+  scheduledEndTime               String   @default("18:00")
+  includeEarlyArrivalAsOvertime  Boolean  @default(false)
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+  
+  staff                          Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
 }
 
 model TimeRecord {
