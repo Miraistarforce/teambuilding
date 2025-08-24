@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { API_BASE_URL } from '../config/api';
+import api from '../lib/api';
 
 interface EmployeeSettingsModalProps {
   staffId: number;
@@ -42,11 +41,7 @@ export default function EmployeeSettingsModal({ staffId, staffName, onClose }: E
 
   const fetchEmployeeSettings = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${API_BASE_URL}/staff/${staffId}/employee-settings`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await api.get(`/staff/${staffId}/employee-settings`);
       setSettings(response.data);
       setIsLoading(false);
     } catch (error) {
@@ -59,12 +54,7 @@ export default function EmployeeSettingsModal({ staffId, staffName, onClose }: E
     setIsSaving(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(
-        `${API_BASE_URL}/staff/${staffId}/employee-settings`,
-        settings,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put(`/staff/${staffId}/employee-settings`, settings);
       onClose();
     } catch (error) {
       console.error('Failed to save employee settings:', error);
