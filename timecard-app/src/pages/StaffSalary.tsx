@@ -122,30 +122,56 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
           // 各勤務日の残業時間を計算
           staffRecords.forEach((record: any) => {
             if (record.clockIn && record.clockOut && record.workMinutes > 0) {
-              const clockInTime = new Date(record.clockIn);
-              const clockOutTime = new Date(record.clockOut);
-              const recordDate = new Date(record.date);
+              // デバイスのローカルタイムで日付を処理（日本時間として扱う）
+              const clockInDate = new Date(record.clockIn);
+              const clockOutDate = new Date(record.clockOut);
               
-              // その日の定時を設定
-              const scheduledStart = new Date(recordDate);
-              scheduledStart.setHours(startHour, startMin, 0, 0);
-              const scheduledEnd = new Date(recordDate);
-              scheduledEnd.setHours(endHour, endMin, 0, 0);
+              // 出勤・退勤時刻を取得（ローカルタイム）
+              const clockInHour = clockInDate.getHours();
+              const clockInMin = clockInDate.getMinutes();
+              const clockOutHour = clockOutDate.getHours();
+              const clockOutMin = clockOutDate.getMinutes();
+              
+              // 出勤・退勤を分単位に変換
+              const clockInMinutes = clockInHour * 60 + clockInMin;
+              const clockOutMinutes = clockOutHour * 60 + clockOutMin;
+              
+              // 定時を分単位に変換
+              const scheduledStartMinutes = startHour * 60 + startMin;
+              const scheduledEndMinutes = endHour * 60 + endMin;
+              
+              console.log('残業計算デバッグ:', {
+                date: record.date,
+                clockIn: `${clockInHour}:${String(clockInMin).padStart(2, '0')}`,
+                clockOut: `${clockOutHour}:${String(clockOutMin).padStart(2, '0')}`,
+                scheduledStart: `${startHour}:${String(startMin).padStart(2, '0')}`,
+                scheduledEnd: `${endHour}:${String(endMin).padStart(2, '0')}`,
+                clockInMinutes,
+                clockOutMinutes,
+                scheduledStartMinutes,
+                scheduledEndMinutes,
+                workMinutes: record.workMinutes
+              });
               
               let dayOvertimeMinutes = 0;
               
               // 退勤後の残業時間を計算
-              if (clockOutTime > scheduledEnd) {
-                const afterWorkMinutes = Math.floor((clockOutTime.getTime() - scheduledEnd.getTime()) / 60000);
-                dayOvertimeMinutes += afterWorkMinutes;
+              if (clockOutMinutes > scheduledEndMinutes) {
+                const afterWorkOvertime = clockOutMinutes - scheduledEndMinutes;
+                dayOvertimeMinutes += afterWorkOvertime;
+                console.log(`退勤後の残業: ${afterWorkOvertime}分`);
               }
               
               // 早出残業を計算（設定が有効な場合）
-              if (includeEarlyArrivalAsOvertime && clockInTime < scheduledStart) {
-                const earlyMinutes = Math.floor((scheduledStart.getTime() - clockInTime.getTime()) / 60000);
-                dayOvertimeMinutes += earlyMinutes;
+              if (includeEarlyArrivalAsOvertime && clockInMinutes < scheduledStartMinutes) {
+                const earlyOvertime = scheduledStartMinutes - clockInMinutes;
+                dayOvertimeMinutes += earlyOvertime;
+                console.log(`早出残業: ${earlyOvertime}分`);
               }
               
+              console.log(`${record.date}の残業時間: ${dayOvertimeMinutes}分`);
+              
+              // 負の値を防ぐ
               totalOvertimeMinutes += Math.max(0, dayOvertimeMinutes);
             }
           });
@@ -154,6 +180,14 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
           const hourlyWage = employeeSettings?.currentHourlyWage || staffInfo.hourlyWage || 0;
           const overtimeRate = staffInfo.overtimeRate || 1.25;
           const overtimePay = Math.floor((totalOvertimeMinutes / 60) * hourlyWage * overtimeRate);
+          
+          console.log('残業計算結果:', {
+            totalOvertimeMinutes,
+            totalOvertimeHours: totalOvertimeMinutes / 60,
+            hourlyWage,
+            overtimeRate,
+            overtimePay
+          });
           
           return {
             staffName: staffInfo.name,
