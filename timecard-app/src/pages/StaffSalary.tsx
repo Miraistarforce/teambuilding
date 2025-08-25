@@ -106,28 +106,70 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
           }
         });
         
-        // 月給制正社員の場合は、stats APIから残業時間と残業代を取得
+        // 月給制正社員の場合は、実際の勤務記録から残業を計算
         if (isMonthlyEmployee) {
-          const overtimeInfo = staffStats?.overtimePay ? {
-            overtimeHours: staffStats.overtimeHours || 0,
-            overtimePay: staffStats.overtimePay || 0
-          } : { overtimeHours: 0, overtimePay: 0 };
+          // 正社員設定を取得
+          const employeeSettings = await staffApi.getEmployeeSettings(selectedStaffId);
+          const scheduledStartTime = employeeSettings?.scheduledStartTime || '09:00';
+          const scheduledEndTime = employeeSettings?.scheduledEndTime || '18:00';
+          const includeEarlyArrivalAsOvertime = employeeSettings?.includeEarlyArrivalAsOvertime || false;
+          
+          const [startHour, startMin] = scheduledStartTime.split(':').map(Number);
+          const [endHour, endMin] = scheduledEndTime.split(':').map(Number);
+          
+          let totalOvertimeMinutes = 0;
+          
+          // 各勤務日の残業時間を計算
+          staffRecords.forEach((record: any) => {
+            if (record.clockIn && record.clockOut && record.workMinutes > 0) {
+              const clockInTime = new Date(record.clockIn);
+              const clockOutTime = new Date(record.clockOut);
+              const recordDate = new Date(record.date);
+              
+              // その日の定時を設定
+              const scheduledStart = new Date(recordDate);
+              scheduledStart.setHours(startHour, startMin, 0, 0);
+              const scheduledEnd = new Date(recordDate);
+              scheduledEnd.setHours(endHour, endMin, 0, 0);
+              
+              let dayOvertimeMinutes = 0;
+              
+              // 退勤後の残業時間を計算
+              if (clockOutTime > scheduledEnd) {
+                const afterWorkMinutes = Math.floor((clockOutTime.getTime() - scheduledEnd.getTime()) / 60000);
+                dayOvertimeMinutes += afterWorkMinutes;
+              }
+              
+              // 早出残業を計算（設定が有効な場合）
+              if (includeEarlyArrivalAsOvertime && clockInTime < scheduledStart) {
+                const earlyMinutes = Math.floor((scheduledStart.getTime() - clockInTime.getTime()) / 60000);
+                dayOvertimeMinutes += earlyMinutes;
+              }
+              
+              totalOvertimeMinutes += Math.max(0, dayOvertimeMinutes);
+            }
+          });
+          
+          // 残業代を計算（時給換算 × 残業時間 × 残業倍率）
+          const hourlyWage = employeeSettings?.currentHourlyWage || staffInfo.hourlyWage || 0;
+          const overtimeRate = staffInfo.overtimeRate || 1.25;
+          const overtimePay = Math.floor((totalOvertimeMinutes / 60) * hourlyWage * overtimeRate);
           
           return {
             staffName: staffInfo.name,
             hourlyWage: null, // 月給制では時給を表示しない
             holidayAllowance: 0, // 月給制では祝日手当なし
-            overtimeRate: staffInfo.overtimeRate || 1.25,
+            overtimeRate: overtimeRate,
             otherAllowance: 0, // 月給制ではその他手当なし
             totalWorkMinutes,
             totalBreakMinutes,
             workDays,
-            totalSalary: overtimeInfo.overtimePay, // 月給制では残業代のみ
+            totalSalary: overtimePay, // 月給制では残業代のみ
             regularPay: null, // 月給制では基本給を表示しない
-            overtimePay: overtimeInfo.overtimePay,
+            overtimePay: overtimePay,
             holidayPay: 0,
             otherPay: 0,
-            totalOvertimeMinutes: Math.round(overtimeInfo.overtimeHours * 60),
+            totalOvertimeMinutes: totalOvertimeMinutes,
             holidayWorkDays: 0,
             isMonthlyEmployee: true,
             dailyRecords: dailyRecords.sort((a, b) => 

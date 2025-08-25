@@ -67,6 +67,10 @@ export const staffApi = {
     const response = await api.get(`/staff/${staffId}/stats`);
     return response.data;
   },
+  getEmployeeSettings: async (staffId: number) => {
+    const response = await api.get(`/staff/${staffId}/employee-settings`);
+    return response.data;
+  },
 };
 
 export const timeRecordsApi = {
