@@ -41,6 +41,10 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
       if (!selectedStaffId) return null;
       
       try {
+        // スタッフの詳細情報と正社員設定を取得
+        const staffStats = await staffApi.getStats(selectedStaffId);
+        const isMonthlyEmployee = staffStats?.isMonthlyEmployee || false;
+        
         // レポートAPIから勤怠データを取得
         console.log('Fetching report for store:', store.id, 'start:', start, 'end:', end);
         const records = await reportsApi.getReport(store.id, start, end, 'detail');
@@ -62,7 +66,8 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
           hourlyWage: firstRecord.hourlyWage,
           holidayAllowance: firstRecord.holidayAllowance,
           overtimeRate: firstRecord.overtimeRate,
-          otherAllowance: firstRecord.otherAllowance
+          otherAllowance: firstRecord.otherAllowance,
+          isMonthlyEmployee
         };
         console.log('Staff info from records:', staffInfo);
         
@@ -101,7 +106,37 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
           }
         });
         
-        // 月給を計算
+        // 月給制正社員の場合は、stats APIから残業時間と残業代を取得
+        if (isMonthlyEmployee) {
+          const overtimeInfo = staffStats?.overtimePay ? {
+            overtimeHours: staffStats.overtimeHours || 0,
+            overtimePay: staffStats.overtimePay || 0
+          } : { overtimeHours: 0, overtimePay: 0 };
+          
+          return {
+            staffName: staffInfo.name,
+            hourlyWage: null, // 月給制では時給を表示しない
+            holidayAllowance: 0, // 月給制では祝日手当なし
+            overtimeRate: staffInfo.overtimeRate || 1.25,
+            otherAllowance: 0, // 月給制ではその他手当なし
+            totalWorkMinutes,
+            totalBreakMinutes,
+            workDays,
+            totalSalary: overtimeInfo.overtimePay, // 月給制では残業代のみ
+            regularPay: null, // 月給制では基本給を表示しない
+            overtimePay: overtimeInfo.overtimePay,
+            holidayPay: 0,
+            otherPay: 0,
+            totalOvertimeMinutes: Math.round(overtimeInfo.overtimeHours * 60),
+            holidayWorkDays: 0,
+            isMonthlyEmployee: true,
+            dailyRecords: dailyRecords.sort((a, b) => 
+              new Date(a.date).getTime() - new Date(b.date).getTime()
+            )
+          };
+        }
+        
+        // 時給制の場合は従来通り計算
         const monthlySalary = calculateMonthlySalary(
           dailyRecords.map(r => ({ date: r.date, workMinutes: r.workMinutes })),
           staffInfo.hourlyWage || 0,
@@ -126,6 +161,7 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
           otherPay: monthlySalary.otherPay,
           totalOvertimeMinutes: monthlySalary.totalOvertimeMinutes,
           holidayWorkDays: monthlySalary.holidayWorkDays,
+          isMonthlyEmployee: false,
           dailyRecords: dailyRecords.sort((a, b) => 
             new Date(a.date).getTime() - new Date(b.date).getTime()
           )
@@ -236,7 +272,9 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="p-4 bg-background-sub rounded-lg">
                 <p className="text-sm text-text-sub mb-1">時給</p>
-                <p className="text-xl font-bold">¥{(salaryData.hourlyWage || 0).toLocaleString()}</p>
+                <p className="text-xl font-bold">
+                  {salaryData.isMonthlyEmployee ? 'ー' : `¥${(salaryData.hourlyWage || 0).toLocaleString()}`}
+                </p>
               </div>
               <div className="p-4 bg-background-sub rounded-lg">
                 <p className="text-sm text-text-sub mb-1">勤務日数</p>
@@ -247,7 +285,9 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
                 <p className="text-xl font-bold">{formatMinutes(salaryData.totalWorkMinutes || 0)}</p>
               </div>
               <div className="p-4 bg-accent-primary/10 rounded-lg">
-                <p className="text-sm text-accent-primary mb-1">給与総額</p>
+                <p className="text-sm text-accent-primary mb-1">
+                  {salaryData.isMonthlyEmployee ? '残業代' : '給与総額'}
+                </p>
                 <p className="text-2xl font-bold text-accent-primary">
                   ¥{(salaryData.totalSalary || 0).toLocaleString()}
                 </p>
@@ -258,32 +298,55 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
             <div className="mb-6 p-4 bg-background-sub rounded-lg">
               <h4 className="text-sm font-semibold mb-3">給与内訳</h4>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>基本給:</span>
-                  <span className="font-medium">¥{(salaryData.regularPay || 0).toLocaleString()}</span>
-                </div>
-                {salaryData.overtimePay > 0 && (
-                  <div className="flex justify-between">
-                    <span>残業代 ({formatMinutes(salaryData.totalOvertimeMinutes)} × {salaryData.overtimeRate}倍):</span>
-                    <span className="font-medium">¥{salaryData.overtimePay.toLocaleString()}</span>
-                  </div>
+                {salaryData.isMonthlyEmployee ? (
+                  // 月給制の場合
+                  <>
+                    <div className="flex justify-between">
+                      <span>基本給:</span>
+                      <span className="font-medium">ー</span>
+                    </div>
+                    {salaryData.overtimePay > 0 && (
+                      <div className="flex justify-between">
+                        <span>残業代 ({formatMinutes(salaryData.totalOvertimeMinutes)} × {salaryData.overtimeRate}倍):</span>
+                        <span className="font-medium">¥{salaryData.overtimePay.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="border-t pt-2 flex justify-between font-semibold">
+                      <span>合計 (残業代のみ):</span>
+                      <span className="text-accent-primary">¥{salaryData.totalSalary.toLocaleString()}</span>
+                    </div>
+                  </>
+                ) : (
+                  // 時給制の場合
+                  <>
+                    <div className="flex justify-between">
+                      <span>基本給:</span>
+                      <span className="font-medium">¥{(salaryData.regularPay || 0).toLocaleString()}</span>
+                    </div>
+                    {salaryData.overtimePay > 0 && (
+                      <div className="flex justify-between">
+                        <span>残業代 ({formatMinutes(salaryData.totalOvertimeMinutes)} × {salaryData.overtimeRate}倍):</span>
+                        <span className="font-medium">¥{salaryData.overtimePay.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {salaryData.holidayPay > 0 && (
+                      <div className="flex justify-between">
+                        <span>祝日手当 ({salaryData.holidayWorkDays}日):</span>
+                        <span className="font-medium">¥{salaryData.holidayPay.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {salaryData.otherPay > 0 && (
+                      <div className="flex justify-between">
+                        <span>その他手当:</span>
+                        <span className="font-medium">¥{salaryData.otherPay.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="border-t pt-2 flex justify-between font-semibold">
+                      <span>合計:</span>
+                      <span className="text-accent-primary">¥{salaryData.totalSalary.toLocaleString()}</span>
+                    </div>
+                  </>
                 )}
-                {salaryData.holidayPay > 0 && (
-                  <div className="flex justify-between">
-                    <span>祝日手当 ({salaryData.holidayWorkDays}日):</span>
-                    <span className="font-medium">¥{salaryData.holidayPay.toLocaleString()}</span>
-                  </div>
-                )}
-                {salaryData.otherPay > 0 && (
-                  <div className="flex justify-between">
-                    <span>その他手当:</span>
-                    <span className="font-medium">¥{salaryData.otherPay.toLocaleString()}</span>
-                  </div>
-                )}
-                <div className="border-t pt-2 flex justify-between font-semibold">
-                  <span>合計:</span>
-                  <span className="text-accent-primary">¥{salaryData.totalSalary.toLocaleString()}</span>
-                </div>
               </div>
             </div>
 

@@ -303,6 +303,23 @@ router.get('/:id/stats', authenticate, async (req, res, next) => {
     });
     
     
+    // Get employee settings to check if monthly employee
+    const employeeSettings = await prisma.employeeSettings.findUnique({
+      where: { staffId }
+    });
+    
+    // Get staff info
+    const staff = await prisma.staff.findUnique({
+      where: { id: staffId },
+      select: { 
+        hourlyWage: true,
+        overtimeRate: true,
+        otherAllowance: true 
+      }
+    });
+    
+    const isMonthlyEmployee = employeeSettings?.employeeType === 'monthly';
+    
     // Calculate monthly salary
     const monthRecords = await prisma.timeRecord.findMany({
       where: {
@@ -313,41 +330,87 @@ router.get('/:id/stats', authenticate, async (req, res, next) => {
         },
         status: { in: ['FINISHED', 'COMPLETED'] },
         clockOut: { not: null }
-      },
-      include: {
-        staff: true
       }
     });
     
     let monthlySalary = 0;
-    monthRecords.forEach(record => {
-      if (record.workMinutes) {
-        const hourlyWage = record.staff.hourlyWage;
-        const overtimeRate = record.staff.overtimeRate || 1.25;
-        const regularMinutes = Math.min(record.workMinutes, 480); // 8 hours
-        const overtimeMinutes = Math.max(0, record.workMinutes - 480);
-        
-        const regularPay = (regularMinutes / 60) * hourlyWage;
-        const overtimePay = (overtimeMinutes / 60) * hourlyWage * overtimeRate;
-        
-        monthlySalary += regularPay + overtimePay;
+    let overtimeHours = 0;
+    let overtimePay = 0;
+    
+    if (isMonthlyEmployee && employeeSettings) {
+      // For monthly employees, only calculate overtime
+      const scheduledStartTime = employeeSettings.scheduledStartTime || '09:00';
+      const scheduledEndTime = employeeSettings.scheduledEndTime || '18:00';
+      const [startHour, startMin] = scheduledStartTime.split(':').map(Number);
+      const [endHour, endMin] = scheduledEndTime.split(':').map(Number);
+      const scheduledMinutesPerDay = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+      
+      monthRecords.forEach(record => {
+        if (record.clockIn && record.clockOut && record.workMinutes) {
+          const clockInTime = new Date(record.clockIn);
+          const clockOutTime = new Date(record.clockOut);
+          
+          // Calculate scheduled time for that day
+          const scheduledStart = new Date(record.date);
+          scheduledStart.setHours(startHour, startMin, 0, 0);
+          const scheduledEnd = new Date(record.date);
+          scheduledEnd.setHours(endHour, endMin, 0, 0);
+          
+          let overtimeMinutes = 0;
+          
+          // Calculate overtime after scheduled end time
+          if (clockOutTime > scheduledEnd) {
+            const afterWorkMinutes = Math.floor((clockOutTime.getTime() - scheduledEnd.getTime()) / 60000);
+            overtimeMinutes += afterWorkMinutes;
+          }
+          
+          // Calculate early arrival overtime if enabled
+          if (employeeSettings.includeEarlyArrivalAsOvertime && clockInTime < scheduledStart) {
+            const earlyMinutes = Math.floor((scheduledStart.getTime() - clockInTime.getTime()) / 60000);
+            overtimeMinutes += earlyMinutes;
+          }
+          
+          // Calculate overtime pay
+          if (overtimeMinutes > 0) {
+            const hourlyWage = staff?.hourlyWage || 0;
+            const overtimeRate = staff?.overtimeRate || 1.25;
+            overtimeHours += overtimeMinutes / 60;
+            overtimePay += (overtimeMinutes / 60) * hourlyWage * overtimeRate;
+          }
+        }
+      });
+      
+      // For monthly employees, only overtime pay is included
+      monthlySalary = overtimePay;
+    } else {
+      // For hourly employees, calculate as before
+      monthRecords.forEach(record => {
+        if (record.workMinutes) {
+          const hourlyWage = staff?.hourlyWage || 0;
+          const overtimeRate = staff?.overtimeRate || 1.25;
+          const regularMinutes = Math.min(record.workMinutes, 480); // 8 hours
+          const overtimeMinutes = Math.max(0, record.workMinutes - 480);
+          
+          const regularPay = (regularMinutes / 60) * hourlyWage;
+          const overtimePay = (overtimeMinutes / 60) * hourlyWage * overtimeRate;
+          
+          monthlySalary += regularPay + overtimePay;
+        }
+      });
+      
+      // Add monthly allowances for hourly employees
+      if (staff?.otherAllowance) {
+        monthlySalary += staff.otherAllowance;
       }
-    });
-    
-    // Add monthly allowances
-    const staff = await prisma.staff.findUnique({
-      where: { id: staffId },
-      select: { otherAllowance: true }
-    });
-    
-    if (staff?.otherAllowance) {
-      monthlySalary += staff.otherAllowance;
     }
     
     res.json({
       lastWorkDate: lastWork?.date || null,
       monthlyAttendance,
-      monthlySalary: Math.floor(monthlySalary)
+      monthlySalary: Math.floor(monthlySalary),
+      isMonthlyEmployee,
+      overtimeHours: Math.round(overtimeHours * 100) / 100,
+      overtimePay: Math.floor(overtimePay)
     });
   } catch (error) {
     next(error);

@@ -63,6 +63,10 @@ export const staffApi = {
     const response = await api.get(`/staff/list/${storeId}`);
     return response.data;
   },
+  getStats: async (staffId: number) => {
+    const response = await api.get(`/staff/${staffId}/stats`);
+    return response.data;
+  },
 };
 
 export const timeRecordsApi = {
