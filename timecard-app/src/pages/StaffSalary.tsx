@@ -155,19 +155,45 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
               
               let dayOvertimeMinutes = 0;
               
-              // 退勤後の残業時間を計算
-              if (clockOutMinutes > scheduledEndMinutes) {
-                const afterWorkOvertime = clockOutMinutes - scheduledEndMinutes;
-                dayOvertimeMinutes += afterWorkOvertime;
-                console.log(`退勤後の残業: ${afterWorkOvertime}分`);
+              // 月給制の場合、定時外の実働時間のみを残業として計算
+              // 定時内の勤務時間は基本給に含まれるため残業にはならない
+              
+              // 実際の勤務時間（分）
+              const actualWorkMinutes = record.workMinutes || 0;
+              
+              // 定時外勤務の計算
+              if (clockInMinutes >= scheduledEndMinutes) {
+                // 定時終了後に出勤した場合、全勤務時間が残業
+                dayOvertimeMinutes = actualWorkMinutes;
+                console.log(`定時後出勤の残業: ${actualWorkMinutes}分`);
+              } else if (clockOutMinutes > scheduledEndMinutes) {
+                // 定時前に出勤し、定時後に退勤した場合
+                // 定時終了から退勤までの実働時間が残業
+                const overtimeStart = Math.max(clockInMinutes, scheduledEndMinutes);
+                const overtimeEnd = clockOutMinutes;
+                dayOvertimeMinutes = overtimeEnd - overtimeStart;
+                console.log(`定時後の残業: ${dayOvertimeMinutes}分`);
               }
               
               // 早出残業を計算（設定が有効な場合）
-              if (includeEarlyArrivalAsOvertime && clockInMinutes < scheduledStartMinutes) {
-                const earlyOvertime = scheduledStartMinutes - clockInMinutes;
-                dayOvertimeMinutes += earlyOvertime;
-                console.log(`早出残業: ${earlyOvertime}分`);
+              if (includeEarlyArrivalAsOvertime) {
+                if (clockOutMinutes <= scheduledStartMinutes) {
+                  // 定時開始前に退勤した場合、全勤務時間が残業
+                  dayOvertimeMinutes = actualWorkMinutes;
+                  console.log(`定時前退勤の早出残業: ${actualWorkMinutes}分`);
+                } else if (clockInMinutes < scheduledStartMinutes) {
+                  // 定時前に出勤し、定時後に退勤した場合
+                  // 出勤から定時開始までの実働時間が早出残業
+                  const earlyOvertimeStart = clockInMinutes;
+                  const earlyOvertimeEnd = Math.min(clockOutMinutes, scheduledStartMinutes);
+                  const earlyOvertime = earlyOvertimeEnd - earlyOvertimeStart;
+                  dayOvertimeMinutes += earlyOvertime;
+                  console.log(`早出残業: ${earlyOvertime}分`);
+                }
               }
+              
+              // 実働時間を超えない範囲で残業時間を制限
+              dayOvertimeMinutes = Math.min(dayOvertimeMinutes, actualWorkMinutes);
               
               console.log(`${record.date}の残業時間: ${dayOvertimeMinutes}分`);
               
