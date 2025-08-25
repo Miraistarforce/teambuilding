@@ -4,6 +4,7 @@ import { staffApi, reportsApi } from '../lib/api';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { calculateDailyPay, calculateMonthlySalary, isJapaneseHoliday, getHolidayName } from '../utils/salaryCalculation';
+import { calculatePayWithNightShift } from '../utils/nightShiftCalculation';
 import { parseJSTDate, formatDateJapanese, formatTimeJST } from '../utils/dateUtils';
 
 interface StaffSalaryProps {
@@ -77,22 +78,36 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
         let totalWorkMinutes = 0;
         let totalBreakMinutes = 0;
         let workDays = 0;
+        let totalNightShiftPay = 0;
+        let totalNightMinutes = 0;
         const dailyRecords: any[] = [];
         
         staffRecords.forEach((record: any) => {
-          if (record.workMinutes > 0) {
+          if (record.workMinutes > 0 && record.clockIn && record.clockOut) {
             totalWorkMinutes += record.workMinutes;
             totalBreakMinutes += record.totalBreak || 0;
             workDays++;
             
             const date = parseJSTDate(record.date);
-            const dailyPay = calculateDailyPay(
-              record.workMinutes,
+            
+            // 深夜労働を考慮した給与計算
+            const payDetails = calculatePayWithNightShift(
+              new Date(record.clockIn),
+              new Date(record.clockOut),
+              record.totalBreak || 0,
               record.hourlyWage || 0,
-              record.holidayAllowance || 0,
-              record.overtimeRate || 1.25,
-              date
+              record.overtimeRate || 1.25
             );
+            
+            // 祝日手当を追加
+            let dailyPay = payDetails.totalPay;
+            if (isJapaneseHoliday(date)) {
+              const holidayBonus = (record.workMinutes / 60) * (record.holidayAllowance || 0);
+              dailyPay += Math.floor(holidayBonus);
+            }
+            
+            totalNightShiftPay += payDetails.nightShiftPay + payDetails.nightOvertimePay;
+            totalNightMinutes += payDetails.nightMinutes + payDetails.nightOvertimeMinutes;
             
             dailyRecords.push({
               date: record.date,
@@ -103,7 +118,9 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
               dailyPay,
               isHoliday: isJapaneseHoliday(date),
               holidayName: getHolidayName(date),
-              overtimeMinutes: Math.max(0, record.workMinutes - 480) // 8時間を超えた分
+              overtimeMinutes: payDetails.overtimeMinutes + payDetails.nightOvertimeMinutes,
+              nightMinutes: payDetails.nightMinutes + payDetails.nightOvertimeMinutes,
+              nightShiftPay: payDetails.nightShiftPay + payDetails.nightOvertimePay
             });
           }
         });
@@ -248,14 +265,27 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
           };
         }
         
-        // 時給制の場合は従来通り計算
-        const monthlySalary = calculateMonthlySalary(
-          dailyRecords.map(r => ({ date: r.date, workMinutes: r.workMinutes })),
-          staffInfo.hourlyWage || 0,
-          staffInfo.holidayAllowance || 0,
-          staffInfo.overtimeRate || 1.25,
-          staffInfo.otherAllowance || 0
-        );
+        // 時給制の場合（深夜手当は既に計算済み）
+        // 各日の給与を合計
+        let totalRegularPay = 0;
+        let totalOvertimePay = 0;
+        let totalHolidayPay = 0;
+        let totalOvertimeMinutes = 0;
+        let holidayWorkDays = 0;
+        
+        dailyRecords.forEach(record => {
+          if (record.isHoliday) {
+            holidayWorkDays++;
+            totalHolidayPay += (record.workMinutes / 60) * (staffInfo.holidayAllowance || 0);
+          }
+          totalOvertimeMinutes += record.overtimeMinutes || 0;
+        });
+        
+        // 日次給与の合計から深夜手当を除いた基本給を計算
+        const dailyPayTotal = dailyRecords.reduce((sum, r) => sum + r.dailyPay, 0);
+        totalRegularPay = dailyPayTotal - totalNightShiftPay - Math.floor(totalHolidayPay) - 
+                         Math.floor((totalOvertimeMinutes / 60) * staffInfo.hourlyWage * (staffInfo.overtimeRate - 1));
+        totalOvertimePay = Math.floor((totalOvertimeMinutes / 60) * staffInfo.hourlyWage * (staffInfo.overtimeRate - 1));
         
         // 交通費を計算（出勤日数 × 1日あたりの交通費）
         const transportationPay = staffInfo.hasTransportation ? workDays * staffInfo.transportationAllowance : 0;
@@ -271,14 +301,16 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
           totalWorkMinutes,
           totalBreakMinutes,
           workDays,
-          totalSalary: monthlySalary.totalSalary + transportationPay,
-          regularPay: monthlySalary.regularPay,
-          overtimePay: monthlySalary.overtimePay,
-          holidayPay: monthlySalary.holidayPay,
-          otherPay: monthlySalary.otherPay,
+          totalSalary: dailyPayTotal + transportationPay + staffInfo.otherAllowance,
+          regularPay: Math.floor(totalRegularPay),
+          overtimePay: Math.floor(totalOvertimePay),
+          holidayPay: Math.floor(totalHolidayPay),
+          nightShiftPay: totalNightShiftPay,
+          nightMinutes: totalNightMinutes,
+          otherPay: staffInfo.otherAllowance || 0,
           transportationPay,
-          totalOvertimeMinutes: monthlySalary.totalOvertimeMinutes,
-          holidayWorkDays: monthlySalary.holidayWorkDays,
+          totalOvertimeMinutes,
+          holidayWorkDays,
           isMonthlyEmployee: false,
           dailyRecords: dailyRecords.sort((a, b) => 
             new Date(a.date).getTime() - new Date(b.date).getTime()
@@ -459,6 +491,12 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
                         <span className="font-medium">¥{salaryData.holidayPay.toLocaleString()}</span>
                       </div>
                     )}
+                    {salaryData.nightShiftPay > 0 && (
+                      <div className="flex justify-between">
+                        <span>深夜手当 ({formatMinutes(salaryData.nightMinutes)}):</span>
+                        <span className="font-medium">¥{salaryData.nightShiftPay.toLocaleString()}</span>
+                      </div>
+                    )}
                     {salaryData.otherPay > 0 && (
                       <div className="flex justify-between">
                         <span>その他手当:</span>
@@ -505,6 +543,7 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
                       <th className="text-left px-6 py-3 text-sm font-medium text-text-sub">勤務時間</th>
                       <th className="text-left px-6 py-3 text-sm font-medium text-text-sub">休憩</th>
                       <th className="text-left px-6 py-3 text-sm font-medium text-text-sub">残業</th>
+                      <th className="text-left px-6 py-3 text-sm font-medium text-text-sub">深夜</th>
                       <th className="text-right px-6 py-3 text-sm font-medium text-text-sub">日給</th>
                     </tr>
                   </thead>
@@ -530,6 +569,9 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
                         <td className="px-6 py-4 text-sm text-text-sub">
                           {record.overtimeMinutes > 0 ? formatMinutes(record.overtimeMinutes) : '-'}
                         </td>
+                        <td className="px-6 py-4 text-sm text-text-sub">
+                          {record.nightMinutes > 0 ? formatMinutes(record.nightMinutes) : '-'}
+                        </td>
                         <td className="px-6 py-4 text-sm font-medium text-right">
                           ¥{record.dailyPay.toLocaleString()}
                         </td>
@@ -538,7 +580,7 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
                   </tbody>
                   <tfoot>
                     <tr className="bg-background-sub">
-                      <td colSpan={6} className="px-6 py-4 text-sm font-semibold">合計</td>
+                      <td colSpan={7} className="px-6 py-4 text-sm font-semibold">合計</td>
                       <td className="px-6 py-4 text-right font-bold text-accent-primary">
                         ¥{(salaryData.totalSalary || 0).toLocaleString()}
                       </td>
