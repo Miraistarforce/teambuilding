@@ -31,9 +31,18 @@ export default function Staff() {
 
   const createMutation = useMutation({
     mutationFn: staffApi.create,
-    onSuccess: () => {
+    onSuccess: (newStaff, variables) => {
       queryClient.invalidateQueries({ queryKey: ['staff', selectedStoreId] });
       setShowAddForm(false);
+      
+      // Check if we should open employee settings
+      const showEmployeeSettings = (variables as any).showEmployeeSettings;
+      if (showEmployeeSettings && newStaff?.id) {
+        // Set timeout to ensure the modal is closed first
+        setTimeout(() => {
+          setEmployeeSettingsStaff({ id: newStaff.id, name: newStaff.name });
+        }, 100);
+      }
     },
   });
 
@@ -169,7 +178,11 @@ export default function Staff() {
       {showAddForm && selectedStoreId && (
         <StaffForm
           storeId={selectedStoreId}
-          onSubmit={(data) => createMutation.mutate({ ...data, storeId: selectedStoreId })}
+          onSubmit={(data, showEmployeeSettings) => createMutation.mutate({ 
+            ...data, 
+            storeId: selectedStoreId,
+            showEmployeeSettings 
+          } as any)}
           onClose={() => setShowAddForm(false)}
           isLoading={createMutation.isPending}
         />
