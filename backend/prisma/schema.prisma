@@ -51,6 +51,8 @@ model Staff {
   holidayAllowance  Int      @default(0)     // 祖日手当（時給に+いくら）
   overtimeRate      Float    @default(1.25)  // 残業代倍率
   otherAllowance    Int      @default(0)     // その他手当（月額）
+  transportationAllowance Int @default(0)    // 交通費（1日あたり）
+  hasTransportation Boolean  @default(false) // 交通費支給の有無
   hireDate          DateTime?                // 入社日
   mbtiType          String?                  // MBTI性格タイプ
   isActive          Boolean  @default(true)

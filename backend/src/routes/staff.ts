@@ -32,6 +32,8 @@ router.post('/', authenticate, authorizeStore, validateRequest(commonValidations
       holidayAllowance,
       overtimeRate,
       otherAllowance,
+      transportationAllowance,
+      hasTransportation,
       hireDate
     } = req.body;
 
@@ -61,6 +63,8 @@ router.post('/', authenticate, authorizeStore, validateRequest(commonValidations
     if (holidayAllowance !== undefined) createData.holidayAllowance = holidayAllowance;
     if (overtimeRate !== undefined) createData.overtimeRate = overtimeRate;
     if (otherAllowance !== undefined) createData.otherAllowance = otherAllowance;
+    if (transportationAllowance !== undefined) createData.transportationAllowance = transportationAllowance;
+    if (hasTransportation !== undefined) createData.hasTransportation = hasTransportation;
     if (hireDate) createData.hireDate = new Date(hireDate);
 
     const staff = await prisma.staff.create({
@@ -114,6 +118,8 @@ router.put('/:id', authenticate, authorizeStore, async (req, res, next) => {
       holidayAllowance,
       overtimeRate,
       otherAllowance,
+      transportationAllowance,
+      hasTransportation,
       hireDate,
       mbtiType
     } = req.body;
@@ -126,6 +132,8 @@ router.put('/:id', authenticate, authorizeStore, async (req, res, next) => {
     if (holidayAllowance !== undefined) updateData.holidayAllowance = holidayAllowance;
     if (overtimeRate !== undefined) updateData.overtimeRate = overtimeRate;
     if (otherAllowance !== undefined) updateData.otherAllowance = otherAllowance;
+    if (transportationAllowance !== undefined) updateData.transportationAllowance = transportationAllowance;
+    if (hasTransportation !== undefined) updateData.hasTransportation = hasTransportation;
     if (hireDate !== undefined) updateData.hireDate = hireDate ? new Date(hireDate) : null;
     if (mbtiType !== undefined) updateData.mbtiType = mbtiType;
 

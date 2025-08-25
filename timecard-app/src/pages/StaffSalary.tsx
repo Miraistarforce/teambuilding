@@ -67,6 +67,8 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
           holidayAllowance: firstRecord.holidayAllowance,
           overtimeRate: firstRecord.overtimeRate,
           otherAllowance: firstRecord.otherAllowance,
+          transportationAllowance: firstRecord.transportationAllowance || 0,
+          hasTransportation: firstRecord.hasTransportation || false,
           isMonthlyEmployee
         };
         console.log('Staff info from records:', staffInfo);
@@ -207,12 +209,17 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
           const overtimeRate = staffInfo.overtimeRate || 1.25;
           const overtimePay = Math.floor((totalOvertimeMinutes / 60) * hourlyWage * overtimeRate);
           
+          // 交通費を計算（出勤日数 × 1日あたりの交通費）
+          const transportationPay = staffInfo.hasTransportation ? workDays * staffInfo.transportationAllowance : 0;
+          
           console.log('残業計算結果:', {
             totalOvertimeMinutes,
             totalOvertimeHours: totalOvertimeMinutes / 60,
             hourlyWage,
             overtimeRate,
-            overtimePay
+            overtimePay,
+            transportationPay,
+            workDays
           });
           
           return {
@@ -221,14 +228,17 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
             holidayAllowance: 0, // 月給制では祝日手当なし
             overtimeRate: overtimeRate,
             otherAllowance: 0, // 月給制ではその他手当なし
+            hasTransportation: staffInfo.hasTransportation,
+            transportationAllowance: staffInfo.transportationAllowance,
             totalWorkMinutes,
             totalBreakMinutes,
             workDays,
-            totalSalary: overtimePay, // 月給制では残業代のみ
+            totalSalary: overtimePay + transportationPay, // 月給制では残業代と交通費のみ
             regularPay: null, // 月給制では基本給を表示しない
             overtimePay: overtimePay,
             holidayPay: 0,
             otherPay: 0,
+            transportationPay,
             totalOvertimeMinutes: totalOvertimeMinutes,
             holidayWorkDays: 0,
             isMonthlyEmployee: true,
@@ -247,20 +257,26 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
           staffInfo.otherAllowance || 0
         );
         
+        // 交通費を計算（出勤日数 × 1日あたりの交通費）
+        const transportationPay = staffInfo.hasTransportation ? workDays * staffInfo.transportationAllowance : 0;
+        
         return {
           staffName: staffInfo.name,
           hourlyWage: staffInfo.hourlyWage,
           holidayAllowance: staffInfo.holidayAllowance || 0,
           overtimeRate: staffInfo.overtimeRate || 1.25,
           otherAllowance: staffInfo.otherAllowance || 0,
+          hasTransportation: staffInfo.hasTransportation,
+          transportationAllowance: staffInfo.transportationAllowance,
           totalWorkMinutes,
           totalBreakMinutes,
           workDays,
-          totalSalary: monthlySalary.totalSalary,
+          totalSalary: monthlySalary.totalSalary + transportationPay,
           regularPay: monthlySalary.regularPay,
           overtimePay: monthlySalary.overtimePay,
           holidayPay: monthlySalary.holidayPay,
           otherPay: monthlySalary.otherPay,
+          transportationPay,
           totalOvertimeMinutes: monthlySalary.totalOvertimeMinutes,
           holidayWorkDays: monthlySalary.holidayWorkDays,
           isMonthlyEmployee: false,
@@ -413,8 +429,14 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
                         <span className="font-medium">¥{salaryData.overtimePay.toLocaleString()}</span>
                       </div>
                     )}
+                    {salaryData.transportationPay > 0 && (
+                      <div className="flex justify-between">
+                        <span>交通費 ({salaryData.workDays}日 × ¥{salaryData.transportationAllowance}):</span>
+                        <span className="font-medium">¥{salaryData.transportationPay.toLocaleString()}</span>
+                      </div>
+                    )}
                     <div className="border-t pt-2 flex justify-between font-semibold">
-                      <span>合計 (残業代のみ):</span>
+                      <span>合計:</span>
                       <span className="text-accent-primary">¥{salaryData.totalSalary.toLocaleString()}</span>
                     </div>
                   </>
@@ -441,6 +463,12 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
                       <div className="flex justify-between">
                         <span>その他手当:</span>
                         <span className="font-medium">¥{salaryData.otherPay.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {salaryData.transportationPay > 0 && (
+                      <div className="flex justify-between">
+                        <span>交通費 ({salaryData.workDays}日 × ¥{salaryData.transportationAllowance}):</span>
+                        <span className="font-medium">¥{salaryData.transportationPay.toLocaleString()}</span>
                       </div>
                     )}
                     <div className="border-t pt-2 flex justify-between font-semibold">

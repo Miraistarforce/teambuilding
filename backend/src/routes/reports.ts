@@ -84,7 +84,9 @@ router.get('/store/:storeId', authenticate, async (req, res) => {
         hourlyWage: record.staff.hourlyWage,
         holidayAllowance: record.staff.holidayAllowance || 0,
         overtimeRate: record.staff.overtimeRate || 1.25,
-        otherAllowance: record.staff.otherAllowance || 0
+        otherAllowance: record.staff.otherAllowance || 0,
+        transportationAllowance: record.staff.transportationAllowance || 0,
+        hasTransportation: record.staff.hasTransportation || false
       };
     }).filter(record => record.workMinutes > 0); // 実際に勤務した記録のみ返す
 

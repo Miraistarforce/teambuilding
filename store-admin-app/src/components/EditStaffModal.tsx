@@ -8,6 +8,8 @@ interface EditStaffModalProps {
     holidayAllowance?: number;
     overtimeRate?: number;
     otherAllowance?: number;
+    transportationAllowance?: number;
+    hasTransportation?: boolean;
     hireDate?: string;
     isActive: boolean;
   };
@@ -23,6 +25,8 @@ export default function EditStaffModal({ staff, onSubmit, onClose, isLoading, on
   const [holidayAllowance, setHolidayAllowance] = useState((staff.holidayAllowance || 0).toString());
   const [overtimeRate, setOvertimeRate] = useState((staff.overtimeRate || 1.25).toString());
   const [otherAllowance, setOtherAllowance] = useState((staff.otherAllowance || 0).toString());
+  const [hasTransportation, setHasTransportation] = useState(staff.hasTransportation || false);
+  const [transportationAllowance, setTransportationAllowance] = useState((staff.transportationAllowance || 0).toString());
   const [hireDate, setHireDate] = useState(
     staff.hireDate ? new Date(staff.hireDate).toISOString().split('T')[0] : ''
   );
@@ -37,6 +41,7 @@ export default function EditStaffModal({ staff, onSubmit, onClose, isLoading, on
     const holiday = parseInt(holidayAllowance);
     const overtime = parseFloat(overtimeRate);
     const other = parseInt(otherAllowance);
+    const transportation = parseInt(transportationAllowance);
 
     if (isNaN(wage) || wage < 1) {
       setError('時給は1円以上の数値を入力してください');
@@ -58,11 +63,18 @@ export default function EditStaffModal({ staff, onSubmit, onClose, isLoading, on
       return;
     }
 
+    if (isNaN(transportation) || transportation < 0) {
+      setError('交通費は0円以上の数値を入力してください');
+      return;
+    }
+
     const updateData: any = { 
       isActive,
       holidayAllowance: holiday,
       overtimeRate: overtime,
-      otherAllowance: other
+      otherAllowance: other,
+      hasTransportation,
+      transportationAllowance: transportation
     };
     
     if (name !== staff.name) updateData.name = name;
@@ -173,6 +185,41 @@ export default function EditStaffModal({ staff, onSubmit, onClose, isLoading, on
               onChange={(e) => setHireDate(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary"
             />
+          </div>
+
+          <div className="border-t pt-4">
+            <div className="flex items-center mb-3">
+              <input
+                id="hasTransportation"
+                type="checkbox"
+                checked={hasTransportation}
+                onChange={(e) => setHasTransportation(e.target.checked)}
+                className="mr-2"
+              />
+              <label htmlFor="hasTransportation" className="text-sm font-medium">
+                交通費を支給する
+              </label>
+            </div>
+            
+            {hasTransportation && (
+              <div>
+                <label htmlFor="edit-transportationAllowance" className="block text-sm font-medium mb-2">
+                  交通費（1日あたり）
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="edit-transportationAllowance"
+                    type="number"
+                    value={transportationAllowance}
+                    onChange={(e) => setTransportationAllowance(e.target.value)}
+                    className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary"
+                    min="0"
+                  />
+                  <span className="text-sm text-text-sub">円/日</span>
+                </div>
+                <p className="text-xs text-text-sub mt-1">出勤日数分が支給されます</p>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center">
