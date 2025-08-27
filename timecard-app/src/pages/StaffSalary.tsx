@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { staffApi, reportsApi } from '../lib/api';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { calculateDailyPay, calculateMonthlySalary, isJapaneseHoliday, getHolidayName } from '../utils/salaryCalculation';
+import { isJapaneseHoliday, getHolidayName } from '../utils/salaryCalculation';
 import { calculatePayWithNightShift } from '../utils/nightShiftCalculation';
 import { parseJSTDate, formatDateJapanese, formatTimeJST } from '../utils/dateUtils';
 
@@ -491,9 +491,9 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
                         <span className="font-medium">¥{salaryData.holidayPay.toLocaleString()}</span>
                       </div>
                     )}
-                    {salaryData.nightShiftPay > 0 && (
+                    {salaryData.nightShiftPay && salaryData.nightShiftPay > 0 && (
                       <div className="flex justify-between">
-                        <span>深夜手当 ({formatMinutes(salaryData.nightMinutes)}):</span>
+                        <span>深夜手当 ({formatMinutes(salaryData.nightMinutes || 0)}):</span>
                         <span className="font-medium">¥{salaryData.nightShiftPay.toLocaleString()}</span>
                       </div>
                     )}

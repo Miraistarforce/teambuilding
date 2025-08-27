@@ -17,6 +17,7 @@ interface ImageData {
   date: string;
   createdAt: string;
   imageUrl: string;
+  imagePath: string;
   comment: string;
 }
 
@@ -41,9 +42,9 @@ export default function ImagesGallery({ store }: ImagesGalleryProps) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (imageUrl: string) => {
+    mutationFn: async (imagePath: string) => {
       const response = await axios.delete(
-        `${API_BASE_URL}/daily-reports/images/${encodeURIComponent(imageUrl)}`,
+        `${API_BASE_URL}/daily-reports/images/${encodeURIComponent(imagePath)}`,
         {
           params: { storeId: store.id },
           headers: {
@@ -65,29 +66,66 @@ export default function ImagesGallery({ store }: ImagesGalleryProps) {
 
   const handleDelete = (image: ImageData) => {
     if (confirm(`${image.staffName}の画像を削除してもよろしいですか？`)) {
-      deleteMutation.mutate(image.imageUrl);
+      deleteMutation.mutate(image.imagePath);
     }
   };
 
   const handleDownload = async (image: ImageData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}${image.imageUrl}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('timecardToken')}`,
-        },
-      });
+      // image.imageUrlは既にSupabaseの完全なURLなので、そのまま使用
+      const imageUrl = image.imageUrl;
+      
+      console.log('Downloading from URL:', imageUrl);
+      
+      const response = await fetch(imageUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      // Content-Typeを確認
+      const contentType = response.headers.get('content-type');
+      console.log('Response Content-Type:', contentType);
+      console.log('Response size (approx):', response.headers.get('content-length'), 'bytes');
+      
+      // 画像形式かチェック
+      if (contentType && !contentType.startsWith('image/')) {
+        console.error('Invalid content type:', contentType);
+        // レスポンスのテキストを確認（デバッグ用）
+        const text = await response.text();
+        console.error('Response text (first 500 chars):', text.substring(0, 500));
+        throw new Error(`期待される画像形式ではありません: ${contentType}`);
+      }
+      
+      // Blobとして取得（Content-Typeを明示的に指定）
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      console.log('Blob type:', blob.type, 'Blob size:', blob.size);
+      
+      // Blobが空でないか確認
+      if (blob.size === 0) {
+        throw new Error('画像データが空です');
+      }
+      
+      // 画像タイプに基づいた適切なBlobを作成
+      const imageBlob = new Blob([blob], { type: blob.type || 'image/jpeg' });
+      const url = window.URL.createObjectURL(imageBlob);
+      
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${image.staffName}_${format(new Date(image.date), 'yyyyMMdd')}_${image.id}.jpg`;
+      
+      // ファイル拡張子を元のURLから取得
+      const extension = imageUrl.split('.').pop()?.split('?')[0] || 'jpg';
+      a.download = `${image.staffName}_${format(new Date(image.date), 'yyyyMMdd')}_${image.id}.${extension}`;
+      
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+      
+      console.log('Download completed successfully');
     } catch (error) {
       console.error('Download error:', error);
-      alert('画像のダウンロードに失敗しました');
+      alert(`画像のダウンロードに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
     }
   };
 
@@ -128,7 +166,7 @@ export default function ImagesGallery({ store }: ImagesGalleryProps) {
                     onClick={() => setSelectedImage(image)}
                   >
                     <img
-                      src={image.imageUrl.startsWith('http') ? image.imageUrl : `${API_BASE_URL}${image.imageUrl}`}
+                      src={image.imageUrl}
                       alt={`${image.staffName}の画像`}
                       className="w-full h-full object-cover"
                       loading="lazy"
@@ -213,7 +251,7 @@ export default function ImagesGallery({ store }: ImagesGalleryProps) {
               </div>
               
               <img
-                src={selectedImage.imageUrl.startsWith('http') ? selectedImage.imageUrl : `${API_BASE_URL}${selectedImage.imageUrl}`}
+                src={selectedImage.imageUrl}
                 alt={`${selectedImage.staffName}の画像`}
                 className="w-full rounded-lg mb-4"
               />
