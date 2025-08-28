@@ -369,7 +369,6 @@ function StaffCard({
     if (!timeRecord.clockOut) return false;
     
     const now = new Date();
-    const clockOut = new Date(timeRecord.clockOut);
     const clockIn = new Date(timeRecord.clockIn);
     
     // 出勤時刻が現在の「今日」と同じなら、新しい日ではない（すでに今日出勤している）
