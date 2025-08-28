@@ -47,7 +47,6 @@ const cleanupOldData = () => {
 export default function StaffTimecard({ store, onBack, isEmbedded = false }: StaffTimecardProps) {
   const navigate = useNavigate();
   const storageKey = getStorageKey(store.id);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
   // 初期状態をローカルストレージから読み込み
   const [selectedStaffList, setSelectedStaffList] = useState<SelectedStaff[]>(() => {
@@ -80,18 +79,14 @@ export default function StaffTimecard({ store, onBack, isEmbedded = false }: Sta
     
     // オンライン/オフライン状態を監視
     const handleOnline = () => {
-      setIsOnline(true);
       // オンライン復帰時に同期
       syncPendingRecords();
     };
-    const handleOffline = () => setIsOnline(false);
     
     window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
     
     return () => {
       window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
@@ -311,31 +306,35 @@ function StaffCard({
     loadLocalRecord();
   }, [staffId]);
   
-  const { data: timeRecord, refetch: refetchRecord, isError, error } = useQuery({
+  const { data: timeRecord, refetch: refetchRecord, isError } = useQuery({
     queryKey: ['timeRecord', staffId],
     queryFn: () => timeRecordsApi.getTodayRecord(staffId),
     refetchInterval: 60000, // 1分ごとに更新
     staleTime: 0, // 常に最新データを取得
     gcTime: 0, // キャッシュを保持しない
     retry: 3,
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
-    onSuccess: async (data) => {
-      // 成功時はIndexedDBにも保存
-      if (data) {
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000)
+  });
+
+  // Save to IndexedDB when data changes
+  useEffect(() => {
+    const saveToIndexedDB = async () => {
+      if (timeRecord) {
         const today = new Date();
         if (today.getHours() < 4) {
           today.setDate(today.getDate() - 1);
         }
         await saveTimeRecordOffline({
-          ...data,
+          ...timeRecord,
           staffId,
           date: today.toISOString().split('T')[0],
           syncStatus: 'synced'
         });
-        setLocalRecord(data);
+        setLocalRecord(timeRecord);
       }
-    }
-  });
+    };
+    saveToIndexedDB();
+  }, [timeRecord, staffId]);
   
   // エラー時はローカルレコードを使用
   const displayRecord = isError ? localRecord : (timeRecord || localRecord);

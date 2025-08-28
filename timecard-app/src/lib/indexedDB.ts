@@ -178,9 +178,9 @@ export const saveTimeRecordOffline = async (record: Partial<TimeRecordCache>) =>
   await indexedDBHelper.saveTimeRecord(fullRecord);
   
   // Trigger background sync if available
-  if ('serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype) {
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
     const registration = await navigator.serviceWorker.ready;
-    await registration.sync.register('sync-timerecords');
+    await (registration as any).sync.register('sync-timerecords');
   }
   
   return fullRecord;
