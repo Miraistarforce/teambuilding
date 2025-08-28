@@ -499,9 +499,29 @@ function StaffCard({
       {hasClockIn && !isNewDay() && (
         <div className="mt-4 pt-4 border-t space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-text-sub">勤務時間</span>
+            <span className="text-text-sub">現在の勤務時間</span>
             <span className="font-medium">{calculateCurrentWorkTime()}</span>
           </div>
+          {timeRecord.previousWorkMinutes > 0 && (
+            <div className="flex justify-between">
+              <span className="text-text-sub">前回までの勤務時間</span>
+              <span className="font-medium">{formatMinutes(timeRecord.previousWorkMinutes)}</span>
+            </div>
+          )}
+          {timeRecord.previousWorkMinutes > 0 && (
+            <div className="flex justify-between font-semibold">
+              <span className="text-text-sub">本日の合計勤務時間</span>
+              <span className="text-accent-primary">
+                {formatMinutes(
+                  timeRecord.previousWorkMinutes + 
+                  Math.max(0, Math.floor((
+                    (timeRecord.clockOut ? new Date(timeRecord.clockOut).getTime() : new Date().getTime()) - 
+                    new Date(timeRecord.clockIn).getTime()
+                  ) / 60000) - (timeRecord.totalBreak || 0))
+                )}
+              </span>
+            </div>
+          )}
           {timeRecord.totalBreak > 0 && (
             <div className="flex justify-between">
               <span className="text-text-sub">休憩時間</span>

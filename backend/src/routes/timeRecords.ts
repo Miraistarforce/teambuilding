@@ -52,8 +52,9 @@ router.post('/clock-in', async (req, res, next) => {
         }
       });
     } else {
-      // 退勤済みの場合は、前の記録を保持したまま新しい出勤時間をセット
-      // clockOutはnullにリセットして、新しい勤務セッションを開始
+      // 退勤済みの場合は、前の勤務時間を保存してから新しい出勤時間をセット
+      const previousWorkMinutes = timeRecord.previousWorkMinutes + timeRecord.workMinutes;
+      
       timeRecord = await prisma.timeRecord.update({
         where: { id: timeRecord.id },
         data: {
@@ -61,7 +62,8 @@ router.post('/clock-in', async (req, res, next) => {
           clockOut: null,
           status: RecordStatus.WORKING,
           totalBreak: 0,  // 休憩時間もリセット
-          workMinutes: 0   // 勤務時間もリセット
+          workMinutes: 0,   // 現在の勤務時間をリセット
+          previousWorkMinutes: previousWorkMinutes  // 前回までの勤務時間を保存
         }
       });
     }
