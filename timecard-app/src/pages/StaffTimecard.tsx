@@ -361,10 +361,42 @@ function StaffCard({
     return formatMinutes(Math.max(0, workMinutes));
   };
 
+  // 新しい日かどうかを判定（午前4時基準）
+  const isNewDay = () => {
+    if (!timeRecord || !timeRecord.clockOut) return false;
+    
+    const now = new Date();
+    const clockOut = new Date(timeRecord.clockOut);
+    
+    // 現在時刻が午前4時以降の場合
+    if (now.getHours() >= 4) {
+      // 退勤時刻が午前4時前（前日扱い）なら新しい日
+      if (clockOut.getHours() < 4) {
+        // 退勤が今日の午前0-4時の場合
+        const todayMidnight = new Date(now);
+        todayMidnight.setHours(0, 0, 0, 0);
+        return clockOut >= todayMidnight;
+      }
+      // 退勤時刻も午前4時以降なら、日付が異なるかチェック
+      return clockOut.toDateString() !== now.toDateString();
+    } else {
+      // 現在時刻が午前0-4時の場合
+      // 退勤が昨日の午前4時以降なら同じ日
+      if (clockOut.getHours() >= 4) {
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return clockOut.toDateString() !== yesterday.toDateString();
+      }
+      // 両方とも午前0-4時なら日付で判定
+      return clockOut.toDateString() !== now.toDateString();
+    }
+  };
+
   const isWorking = timeRecord && timeRecord.status === 'WORKING';
   const isOnBreak = timeRecord && timeRecord.status === 'ON_BREAK';
   const hasClockIn = timeRecord && timeRecord.clockIn;
   const hasClockOut = timeRecord && timeRecord.clockOut;
+  const shouldShowClockIn = !hasClockIn || (hasClockOut && isNewDay());
 
   return (
     <div className="bg-background-main rounded-lg shadow-subtle p-6 relative">
@@ -382,7 +414,7 @@ function StaffCard({
       {/* スタッフ名と状態 */}
       <div className="mb-4">
         <h3 className="text-xl font-bold">{staffName}</h3>
-        {hasClockIn && (
+        {hasClockIn && !isNewDay() && (
           <div className="mt-2 space-y-1">
             <p className="text-sm text-accent-success">
               出勤 {formatTime(timeRecord.clockIn)}
@@ -399,14 +431,14 @@ function StaffCard({
             )}
           </div>
         )}
-        {!hasClockIn && (
+        {(!hasClockIn || isNewDay()) && (
           <p className="text-sm text-text-sub mt-1">未出勤</p>
         )}
       </div>
 
       {/* ボタン */}
       <div className="space-y-2">
-        {!hasClockIn && (
+        {shouldShowClockIn && (
           <button
             onClick={() => clockInMutation.mutate()}
             disabled={clockInMutation.isPending}
@@ -416,7 +448,7 @@ function StaffCard({
           </button>
         )}
 
-        {hasClockIn && !hasClockOut && (
+        {hasClockIn && !hasClockOut && !isNewDay() && (
           <div className="flex gap-2">
             {isWorking && (
               <button
@@ -446,7 +478,7 @@ function StaffCard({
           </div>
         )}
 
-        {hasClockOut && (
+        {hasClockOut && !isNewDay() && (
           <div className="text-center py-2 px-3 bg-background-sub rounded-lg">
             <span className="text-sm text-text-sub">本日の業務終了</span>
           </div>
@@ -454,7 +486,7 @@ function StaffCard({
       </div>
 
       {/* 勤務状況 */}
-      {hasClockIn && (
+      {hasClockIn && !isNewDay() && (
         <div className="mt-4 pt-4 border-t space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-text-sub">勤務時間</span>
