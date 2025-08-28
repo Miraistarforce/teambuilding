@@ -274,7 +274,9 @@ router.get('/staff/:staffId/today', async (req, res, next) => {
 
     res.json(record || null);
   } catch (error) {
-    next(error);
+    console.error('Error fetching today record:', error);
+    // Return null on error to prevent frontend from crashing
+    res.json(null);
   }
 });
 

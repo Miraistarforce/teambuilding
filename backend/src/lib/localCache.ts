@@ -1,6 +1,6 @@
 // Local cache for temporary storage when Supabase is unavailable
 import { PrismaClient } from '@prisma/client';
-import { writeFileSync, readFileSync, existsSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import path from 'path';
 
 const CACHE_FILE = path.join(process.cwd(), 'cache', 'pending_records.json');
@@ -31,8 +31,7 @@ class LocalCache {
 
   private ensureCacheDir() {
     if (!existsSync(CACHE_DIR)) {
-      const fs = require('fs');
-      fs.mkdirSync(CACHE_DIR, { recursive: true });
+      mkdirSync(CACHE_DIR, { recursive: true });
     }
   }
 
@@ -192,25 +191,26 @@ class LocalCache {
 // Singleton instance
 const localCache = new LocalCache();
 
-// Automatic sync interval (every 5 minutes)
-setInterval(async () => {
-  const stats = localCache.getStats();
-  if (stats.pending > 0) {
-    console.log(`Starting automatic sync for ${stats.pending} pending records`);
-    
-    try {
-      // Try to connect to database
-      const { PrismaClient } = require('@prisma/client');
-      const prisma = new PrismaClient();
+// Automatic sync interval (every 5 minutes) - only in production
+if (process.env.NODE_ENV === 'production') {
+  setInterval(async () => {
+    const stats = localCache.getStats();
+    if (stats.pending > 0) {
+      console.log(`Starting automatic sync for ${stats.pending} pending records`);
       
-      const result = await localCache.syncWithDatabase(prisma);
-      console.log(`Sync complete: ${result.success} success, ${result.failed} failed`);
-      
-      await prisma.$disconnect();
-    } catch (error) {
-      console.error('Automatic sync failed:', error);
+      try {
+        // Try to connect to database
+        const prisma = new PrismaClient();
+        
+        const result = await localCache.syncWithDatabase(prisma);
+        console.log(`Sync complete: ${result.success} success, ${result.failed} failed`);
+        
+        await prisma.$disconnect();
+      } catch (error) {
+        console.error('Automatic sync failed:', error);
+      }
     }
-  }
-}, 5 * 60 * 1000); // 5 minutes
+  }, 5 * 60 * 1000); // 5 minutes
+}
 
 export default localCache;

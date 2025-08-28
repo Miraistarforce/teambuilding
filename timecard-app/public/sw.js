@@ -95,34 +95,51 @@ async function queueRequest(request) {
 
 // Sync queued requests
 async function syncTimeRecords() {
-  const db = await openDB();
-  const tx = db.transaction('syncQueue', 'readonly');
-  const requests = await tx.objectStore('syncQueue').getAll();
+  try {
+    const db = await openDB();
+    const tx = db.transaction('syncQueue', 'readonly');
+    const store = tx.objectStore('syncQueue');
+    const getAllRequest = store.getAll();
+    
+    // Wait for the request to complete
+    const requests = await new Promise((resolve, reject) => {
+      getAllRequest.onsuccess = () => resolve(getAllRequest.result || []);
+      getAllRequest.onerror = () => reject(getAllRequest.error);
+    });
 
-  for (const reqData of requests) {
-    try {
-      const response = await fetch(reqData.url, {
-        method: reqData.method,
-        headers: reqData.headers,
-        body: reqData.body
-      });
-
-      if (response.ok) {
-        // Remove from queue on success
-        const deleteTx = db.transaction('syncQueue', 'readwrite');
-        await deleteTx.objectStore('syncQueue').delete(reqData.id);
-        await deleteTx.complete;
-      }
-    } catch (error) {
-      console.error('Sync failed for request:', error);
+    // Ensure requests is an array
+    if (!Array.isArray(requests)) {
+      console.log('No pending sync requests');
+      return;
     }
-  }
 
-  // Notify clients about sync completion
-  const clients = await self.clients.matchAll();
-  clients.forEach(client => {
-    client.postMessage({ type: 'SYNC_COMPLETE' });
-  });
+    for (const reqData of requests) {
+      try {
+        const response = await fetch(reqData.url, {
+          method: reqData.method,
+          headers: reqData.headers,
+          body: reqData.body
+        });
+
+        if (response.ok) {
+          // Remove from queue on success
+          const deleteTx = db.transaction('syncQueue', 'readwrite');
+          const deleteStore = deleteTx.objectStore('syncQueue');
+          deleteStore.delete(reqData.id);
+        }
+      } catch (error) {
+        console.error('Sync failed for request:', error);
+      }
+    }
+
+    // Notify clients about sync completion
+    const clients = await self.clients.matchAll();
+    clients.forEach(client => {
+      client.postMessage({ type: 'SYNC_COMPLETE' });
+    });
+  } catch (error) {
+    console.error('Error in syncTimeRecords:', error);
+  }
 }
 
 // Open IndexedDB
