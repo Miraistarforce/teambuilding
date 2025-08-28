@@ -52,11 +52,16 @@ router.post('/clock-in', async (req, res, next) => {
         }
       });
     } else {
+      // 退勤済みの場合は、前の記録を保持したまま新しい出勤時間をセット
+      // clockOutはnullにリセットして、新しい勤務セッションを開始
       timeRecord = await prisma.timeRecord.update({
         where: { id: timeRecord.id },
         data: {
           clockIn: now,
-          status: RecordStatus.WORKING
+          clockOut: null,
+          status: RecordStatus.WORKING,
+          totalBreak: 0,  // 休憩時間もリセット
+          workMinutes: 0   // 勤務時間もリセット
         }
       });
     }

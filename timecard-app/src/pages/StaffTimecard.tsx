@@ -480,8 +480,17 @@ function StaffCard({
         )}
 
         {hasClockOut && !isNewDay() && (
-          <div className="text-center py-2 px-3 bg-background-sub rounded-lg">
-            <span className="text-sm text-text-sub">本日の業務終了</span>
+          <div className="space-y-2">
+            <div className="text-center py-2 px-3 bg-background-sub rounded-lg">
+              <span className="text-sm text-text-sub">本日の業務終了</span>
+            </div>
+            <button
+              onClick={() => clockInMutation.mutate()}
+              disabled={clockInMutation.isPending}
+              className="w-full bg-accent-primary text-white py-3 px-4 rounded-lg hover:opacity-90 transition-opacity font-medium disabled:opacity-50"
+            >
+              {clockInMutation.isPending ? '処理中...' : '再出勤'}
+            </button>
           </div>
         )}
       </div>
