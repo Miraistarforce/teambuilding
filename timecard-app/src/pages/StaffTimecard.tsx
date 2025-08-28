@@ -363,33 +363,35 @@ function StaffCard({
 
   // 新しい日かどうかを判定（午前4時基準）
   const isNewDay = () => {
-    if (!timeRecord || !timeRecord.clockOut) return false;
+    if (!timeRecord) return false;
+    
+    // 退勤していない場合は新しい日ではない
+    if (!timeRecord.clockOut) return false;
     
     const now = new Date();
     const clockOut = new Date(timeRecord.clockOut);
+    const clockIn = new Date(timeRecord.clockIn);
     
-    // 現在時刻が午前4時以降の場合
-    if (now.getHours() >= 4) {
-      // 退勤時刻が午前4時前（前日扱い）なら新しい日
-      if (clockOut.getHours() < 4) {
-        // 退勤が今日の午前0-4時の場合
-        const todayMidnight = new Date(now);
-        todayMidnight.setHours(0, 0, 0, 0);
-        return clockOut >= todayMidnight;
-      }
-      // 退勤時刻も午前4時以降なら、日付が異なるかチェック
-      return clockOut.toDateString() !== now.toDateString();
-    } else {
-      // 現在時刻が午前0-4時の場合
-      // 退勤が昨日の午前4時以降なら同じ日
-      if (clockOut.getHours() >= 4) {
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
-        return clockOut.toDateString() !== yesterday.toDateString();
-      }
-      // 両方とも午前0-4時なら日付で判定
-      return clockOut.toDateString() !== now.toDateString();
+    // 出勤時刻が現在の「今日」と同じなら、新しい日ではない（すでに今日出勤している）
+    const currentToday = new Date(now);
+    if (now.getHours() < 4) {
+      currentToday.setDate(currentToday.getDate() - 1);
     }
+    currentToday.setHours(0, 0, 0, 0);
+    
+    const clockInDay = new Date(clockIn);
+    if (clockIn.getHours() < 4) {
+      clockInDay.setDate(clockInDay.getDate() - 1);
+    }
+    clockInDay.setHours(0, 0, 0, 0);
+    
+    // 出勤日が今日と同じ場合は、新しい日ではない
+    if (clockInDay.getTime() === currentToday.getTime()) {
+      return false;
+    }
+    
+    // 出勤日が今日より前で、退勤済みなら新しい日
+    return clockInDay < currentToday;
   };
 
   const isWorking = timeRecord && timeRecord.status === 'WORKING';
