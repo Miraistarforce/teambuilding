@@ -2,6 +2,7 @@ import { Router } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middlewares/auth';
 import { AppError } from '../middlewares/errorHandler';
+import localCache from '../lib/localCache';
 
 const RecordStatus = {
   NOT_STARTED: 'NOT_STARTED',
@@ -328,6 +329,87 @@ router.get('/report', authenticate, async (req: AuthRequest, res, next) => {
     } else {
       res.json(records);
     }
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/sync', async (req, res, next) => {
+  try {
+    const record = req.body;
+    
+    try {
+      const today = getToday();
+      
+      const existingRecord = await prisma.timeRecord.findUnique({
+        where: {
+          staffId_date: {
+            staffId: record.staffId,
+            date: today
+          }
+        }
+      });
+
+      let syncedRecord;
+      
+      if (existingRecord) {
+        syncedRecord = await prisma.timeRecord.update({
+          where: { id: existingRecord.id },
+          data: {
+            clockIn: record.clockIn ? new Date(record.clockIn) : undefined,
+            clockOut: record.clockOut ? new Date(record.clockOut) : undefined,
+            status: record.status,
+            totalBreak: record.totalBreak || 0,
+            workMinutes: record.workMinutes || 0,
+            previousWorkMinutes: record.previousWorkMinutes || 0
+          }
+        });
+      } else {
+        syncedRecord = await prisma.timeRecord.create({
+          data: {
+            staffId: record.staffId,
+            date: today,
+            clockIn: record.clockIn ? new Date(record.clockIn) : undefined,
+            clockOut: record.clockOut ? new Date(record.clockOut) : undefined,
+            status: record.status || 'NOT_STARTED',
+            totalBreak: record.totalBreak || 0,
+            workMinutes: record.workMinutes || 0,
+            previousWorkMinutes: record.previousWorkMinutes || 0
+          }
+        });
+      }
+      
+      res.json({ success: true, record: syncedRecord });
+    } catch (dbError) {
+      console.error('Database sync failed, using local cache:', dbError);
+      
+      const cachedRecord = await localCache.addRecord(record);
+      
+      res.json({ 
+        success: false, 
+        cached: true, 
+        record: cachedRecord,
+        message: 'Record cached locally and will be synced when connection is restored'
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/cache/status', async (req, res, next) => {
+  try {
+    const stats = localCache.getStats();
+    res.json(stats);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/cache/sync', async (req, res, next) => {
+  try {
+    const result = await localCache.syncWithDatabase(prisma);
+    res.json(result);
   } catch (error) {
     next(error);
   }

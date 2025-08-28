@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { staffApi, timeRecordsApi, fetchCSRFToken } from '../lib/api';
+import { saveTimeRecordOffline, getTimeRecordOffline, syncPendingRecords } from '../lib/indexedDB';
 
 interface StaffTimecardProps {
   store: { id: number; name: string };
@@ -46,6 +47,7 @@ const cleanupOldData = () => {
 export default function StaffTimecard({ store, onBack, isEmbedded = false }: StaffTimecardProps) {
   const navigate = useNavigate();
   const storageKey = getStorageKey(store.id);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
   // 初期状態をローカルストレージから読み込み
   const [selectedStaffList, setSelectedStaffList] = useState<SelectedStaff[]>(() => {
@@ -61,9 +63,36 @@ export default function StaffTimecard({ store, onBack, isEmbedded = false }: Sta
 
   const [toast, setToast] = useState<string | null>(null);
 
-  // CSRFトークンを取得
+  // CSRFトークンを取得とService Worker登録
   useEffect(() => {
     fetchCSRFToken();
+    
+    // Service Worker登録
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          console.log('Service Worker registered:', registration);
+        })
+        .catch(error => {
+          console.error('Service Worker registration failed:', error);
+        });
+    }
+    
+    // オンライン/オフライン状態を監視
+    const handleOnline = () => {
+      setIsOnline(true);
+      // オンライン復帰時に同期
+      syncPendingRecords();
+    };
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // スタッフリストが変更されたらローカルストレージに保存
@@ -265,38 +294,122 @@ function StaffCard({
   showToast: (message: string) => void;
 }) {
   const queryClient = useQueryClient();
+  const [localRecord, setLocalRecord] = useState<any>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
-  const { data: timeRecord, refetch: refetchRecord } = useQuery({
+  // オフライン時用のローカルレコード読み込み
+  useEffect(() => {
+    const loadLocalRecord = async () => {
+      const today = new Date();
+      if (today.getHours() < 4) {
+        today.setDate(today.getDate() - 1);
+      }
+      const dateStr = today.toISOString().split('T')[0];
+      const record = await getTimeRecordOffline(staffId, dateStr);
+      setLocalRecord(record);
+    };
+    loadLocalRecord();
+  }, [staffId]);
+  
+  const { data: timeRecord, refetch: refetchRecord, isError, error } = useQuery({
     queryKey: ['timeRecord', staffId],
     queryFn: () => timeRecordsApi.getTodayRecord(staffId),
     refetchInterval: 60000, // 1分ごとに更新
     staleTime: 0, // 常に最新データを取得
     gcTime: 0, // キャッシュを保持しない
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+    onSuccess: async (data) => {
+      // 成功時はIndexedDBにも保存
+      if (data) {
+        const today = new Date();
+        if (today.getHours() < 4) {
+          today.setDate(today.getDate() - 1);
+        }
+        await saveTimeRecordOffline({
+          ...data,
+          staffId,
+          date: today.toISOString().split('T')[0],
+          syncStatus: 'synced'
+        });
+        setLocalRecord(data);
+      }
+    }
   });
+  
+  // エラー時はローカルレコードを使用
+  const displayRecord = isError ? localRecord : (timeRecord || localRecord);
 
   // 勤務時間を動的に更新するための状態
   const [, forceUpdate] = useState({});
 
   // 1分ごとに勤務時間の表示を更新
   useEffect(() => {
-    if (timeRecord?.clockIn && !timeRecord?.clockOut) {
+    if (displayRecord?.clockIn && !displayRecord?.clockOut) {
       const interval = setInterval(() => {
         forceUpdate({});
       }, 60000); // 1分ごとに更新
 
       return () => clearInterval(interval);
     }
-  }, [timeRecord]);
+  }, [displayRecord]);
+  
+  // オンライン/オフライン状態を監視
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const clockInMutation = useMutation({
     mutationFn: () => timeRecordsApi.clockIn(staffId),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
       await refetchRecord();
       showToast(`${staffName}さんが出勤しました`);
+      
+      // IndexedDBに保存
+      const today = new Date();
+      if (today.getHours() < 4) {
+        today.setDate(today.getDate() - 1);
+      }
+      await saveTimeRecordOffline({
+        ...data,
+        staffId,
+        date: today.toISOString().split('T')[0],
+        syncStatus: 'synced'
+      });
     },
-    onError: () => {
-      showToast(`エラーが発生しました`);
+    onError: async () => {
+      // オフライン時はローカルに保存
+      const now = new Date();
+      const today = new Date();
+      if (today.getHours() < 4) {
+        today.setDate(today.getDate() - 1);
+      }
+      
+      const offlineRecord = {
+        staffId,
+        clockIn: now.toISOString(),
+        clockOut: null,
+        status: 'WORKING',
+        totalBreak: 0,
+        workMinutes: 0,
+        previousWorkMinutes: displayRecord?.previousWorkMinutes || 0,
+        date: today.toISOString().split('T')[0],
+        syncStatus: 'pending' as const
+      };
+      
+      await saveTimeRecordOffline(offlineRecord);
+      setLocalRecord(offlineRecord);
+      showToast(`${staffName}さんが出勤しました（オフライン）`);
     }
   });
 
@@ -351,25 +464,25 @@ function StaffCard({
   };
 
   const calculateCurrentWorkTime = () => {
-    if (!timeRecord || !timeRecord.clockIn) return '0時間00分';
+    if (!displayRecord || !displayRecord.clockIn) return '0時間00分';
     
-    const start = new Date(timeRecord.clockIn);
-    const end = timeRecord.clockOut ? new Date(timeRecord.clockOut) : new Date();
+    const start = new Date(displayRecord.clockIn);
+    const end = displayRecord.clockOut ? new Date(displayRecord.clockOut) : new Date();
     const totalMinutes = Math.floor((end.getTime() - start.getTime()) / 60000);
-    const workMinutes = totalMinutes - (timeRecord.totalBreak || 0);
+    const workMinutes = totalMinutes - (displayRecord.totalBreak || 0);
     
     return formatMinutes(Math.max(0, workMinutes));
   };
 
   // 新しい日かどうかを判定（午前4時基準）
   const isNewDay = () => {
-    if (!timeRecord) return false;
+    if (!displayRecord) return false;
     
     // 退勤していない場合は新しい日ではない
-    if (!timeRecord.clockOut) return false;
+    if (!displayRecord.clockOut) return false;
     
     const now = new Date();
-    const clockIn = new Date(timeRecord.clockIn);
+    const clockIn = new Date(displayRecord.clockIn);
     
     // 出勤時刻が現在の「今日」と同じなら、新しい日ではない（すでに今日出勤している）
     const currentToday = new Date(now);
@@ -393,14 +506,22 @@ function StaffCard({
     return clockInDay < currentToday;
   };
 
-  const isWorking = timeRecord && timeRecord.status === 'WORKING';
-  const isOnBreak = timeRecord && timeRecord.status === 'ON_BREAK';
-  const hasClockIn = timeRecord && timeRecord.clockIn;
-  const hasClockOut = timeRecord && timeRecord.clockOut;
+  const isWorking = displayRecord && displayRecord.status === 'WORKING';
+  const isOnBreak = displayRecord && displayRecord.status === 'ON_BREAK';
+  const hasClockIn = displayRecord && displayRecord.clockIn;
+  const hasClockOut = displayRecord && displayRecord.clockOut;
   const shouldShowClockIn = !hasClockIn || (hasClockOut && isNewDay());
 
   return (
     <div className="bg-background-main rounded-lg shadow-subtle p-6 relative">
+      {/* オフライン/エラー通知 */}
+      {(isError || !isOnline) && (
+        <div className="mb-2 p-2 bg-accent-warning/10 text-accent-warning rounded text-xs flex items-center gap-1">
+          <span>⚠️</span>
+          <span>{!isOnline ? 'オフラインモード' : '接続エラー'}: ローカルデータを使用中</span>
+        </div>
+      )}
+      
       {/* 削除ボタン */}
       <button
         onClick={onRemove}
@@ -418,7 +539,7 @@ function StaffCard({
         {hasClockIn && !isNewDay() && (
           <div className="mt-2 space-y-1">
             <p className="text-sm text-accent-success">
-              出勤 {formatTime(timeRecord.clockIn)}
+              出勤 {formatTime(displayRecord.clockIn)}
             </p>
             {isOnBreak && (
               <span className="inline-flex px-2 py-1 text-xs bg-accent-warning/10 text-accent-warning rounded-full">
@@ -427,7 +548,7 @@ function StaffCard({
             )}
             {hasClockOut && (
               <p className="text-sm text-text-sub">
-                退勤 {formatTime(timeRecord.clockOut)}
+                退勤 {formatTime(displayRecord.clockOut)}
               </p>
             )}
           </div>
@@ -502,30 +623,30 @@ function StaffCard({
             <span className="text-text-sub">現在の勤務時間</span>
             <span className="font-medium">{calculateCurrentWorkTime()}</span>
           </div>
-          {timeRecord.previousWorkMinutes > 0 && (
+          {displayRecord.previousWorkMinutes > 0 && (
             <div className="flex justify-between">
               <span className="text-text-sub">前回までの勤務時間</span>
-              <span className="font-medium">{formatMinutes(timeRecord.previousWorkMinutes)}</span>
+              <span className="font-medium">{formatMinutes(displayRecord.previousWorkMinutes)}</span>
             </div>
           )}
-          {timeRecord.previousWorkMinutes > 0 && (
+          {displayRecord.previousWorkMinutes > 0 && (
             <div className="flex justify-between font-semibold">
               <span className="text-text-sub">本日の合計勤務時間</span>
               <span className="text-accent-primary">
                 {formatMinutes(
-                  timeRecord.previousWorkMinutes + 
+                  displayRecord.previousWorkMinutes + 
                   Math.max(0, Math.floor((
-                    (timeRecord.clockOut ? new Date(timeRecord.clockOut).getTime() : new Date().getTime()) - 
-                    new Date(timeRecord.clockIn).getTime()
-                  ) / 60000) - (timeRecord.totalBreak || 0))
+                    (displayRecord.clockOut ? new Date(displayRecord.clockOut).getTime() : new Date().getTime()) - 
+                    new Date(displayRecord.clockIn).getTime()
+                  ) / 60000) - (displayRecord.totalBreak || 0))
                 )}
               </span>
             </div>
           )}
-          {timeRecord.totalBreak > 0 && (
+          {displayRecord.totalBreak > 0 && (
             <div className="flex justify-between">
               <span className="text-text-sub">休憩時間</span>
-              <span className="font-medium">{formatMinutes(timeRecord.totalBreak)}</span>
+              <span className="font-medium">{formatMinutes(displayRecord.totalBreak)}</span>
             </div>
           )}
         </div>

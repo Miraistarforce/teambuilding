@@ -1,0 +1,148 @@
+// Service Worker for offline support and background sync
+
+const CACHE_NAME = 'timecard-v1';
+const API_BASE_URL = 'https://teambuilding-backend.onrender.com/api';
+
+// Install event - cache essential files
+self.addEventListener('install', (event) => {
+  console.log('Service Worker installing.');
+  self.skipWaiting();
+});
+
+// Activate event - clean up old caches
+self.addEventListener('activate', (event) => {
+  console.log('Service Worker activated.');
+  event.waitUntil(clients.claim());
+});
+
+// Fetch event - handle network requests
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Handle API requests
+  if (url.pathname.includes('/api/time-records')) {
+    event.respondWith(
+      fetch(request.clone())
+        .then(response => {
+          // Cache successful responses
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(async () => {
+          // Return cached response on network failure
+          const cachedResponse = await caches.match(request);
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          
+          // Return offline response for GET requests
+          if (request.method === 'GET') {
+            return new Response(
+              JSON.stringify({ offline: true, message: 'オフラインモード' }),
+              { headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          // Queue POST/PUT requests for sync
+          if (request.method === 'POST' || request.method === 'PUT') {
+            return queueRequest(request);
+          }
+        })
+    );
+  }
+});
+
+// Background sync event
+self.addEventListener('sync', async (event) => {
+  console.log('Background sync triggered:', event.tag);
+  
+  if (event.tag === 'sync-timerecords') {
+    event.waitUntil(syncTimeRecords());
+  }
+});
+
+// Queue failed requests for later sync
+async function queueRequest(request) {
+  const body = await request.text();
+  const queueData = {
+    url: request.url,
+    method: request.method,
+    headers: Object.fromEntries(request.headers.entries()),
+    body: body,
+    timestamp: new Date().toISOString()
+  };
+
+  // Store in IndexedDB
+  const db = await openDB();
+  const tx = db.transaction('syncQueue', 'readwrite');
+  await tx.objectStore('syncQueue').add(queueData);
+  await tx.complete;
+
+  // Register for background sync
+  await self.registration.sync.register('sync-timerecords');
+
+  return new Response(
+    JSON.stringify({ queued: true, message: 'リクエストをキューに追加しました' }),
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+}
+
+// Sync queued requests
+async function syncTimeRecords() {
+  const db = await openDB();
+  const tx = db.transaction('syncQueue', 'readonly');
+  const requests = await tx.objectStore('syncQueue').getAll();
+
+  for (const reqData of requests) {
+    try {
+      const response = await fetch(reqData.url, {
+        method: reqData.method,
+        headers: reqData.headers,
+        body: reqData.body
+      });
+
+      if (response.ok) {
+        // Remove from queue on success
+        const deleteTx = db.transaction('syncQueue', 'readwrite');
+        await deleteTx.objectStore('syncQueue').delete(reqData.id);
+        await deleteTx.complete;
+      }
+    } catch (error) {
+      console.error('Sync failed for request:', error);
+    }
+  }
+
+  // Notify clients about sync completion
+  const clients = await self.clients.matchAll();
+  clients.forEach(client => {
+    client.postMessage({ type: 'SYNC_COMPLETE' });
+  });
+}
+
+// Open IndexedDB
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('TimecardDB', 1);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      
+      if (!db.objectStoreNames.contains('syncQueue')) {
+        const store = db.createObjectStore('syncQueue', { 
+          keyPath: 'id', 
+          autoIncrement: true 
+        });
+        store.createIndex('timestamp', 'timestamp');
+      }
+    };
+  });
+}
