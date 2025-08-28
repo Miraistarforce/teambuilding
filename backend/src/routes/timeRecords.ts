@@ -38,7 +38,7 @@ router.post('/clock-in', async (req, res, next) => {
       }
     });
 
-    if (timeRecord && timeRecord.clockIn) {
+    if (timeRecord && timeRecord.clockIn && !timeRecord.clockOut) {
       throw new AppError('Already clocked in today', 400);
     }
 
