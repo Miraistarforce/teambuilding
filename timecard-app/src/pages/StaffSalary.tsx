@@ -244,13 +244,13 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
             hourlyWage: null, // 月給制では時給を表示しない
             holidayAllowance: 0, // 月給制では祝日手当なし
             overtimeRate: overtimeRate,
-            otherAllowance: 0, // 月給制ではその他手当なし
+            otherAllowance: staffInfo.otherAllowance || 0, // その他手当
             hasTransportation: staffInfo.hasTransportation,
             transportationAllowance: staffInfo.transportationAllowance,
             totalWorkMinutes,
             totalBreakMinutes,
             workDays,
-            totalSalary: overtimePay + transportationPay, // 月給制では残業代と交通費のみ
+            totalSalary: overtimePay + transportationPay + (staffInfo.otherAllowance || 0), // 月給制では残業代と交通費とその他手当
             regularPay: null, // 月給制では基本給を表示しない
             overtimePay: overtimePay,
             holidayPay: 0,
@@ -455,16 +455,22 @@ export default function StaffSalary({ store }: StaffSalaryProps) {
                       <span>基本給:</span>
                       <span className="font-medium">ー</span>
                     </div>
-                    {salaryData.overtimePay > 0 && (
-                      <div className="flex justify-between">
-                        <span>残業代 ({formatMinutes(salaryData.totalOvertimeMinutes)} × {salaryData.overtimeRate}倍):</span>
-                        <span className="font-medium">¥{salaryData.overtimePay.toLocaleString()}</span>
-                      </div>
-                    )}
                     {salaryData.transportationPay > 0 && (
                       <div className="flex justify-between">
                         <span>交通費 ({salaryData.workDays}日 × ¥{salaryData.transportationAllowance}):</span>
                         <span className="font-medium">¥{salaryData.transportationPay.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {salaryData.otherAllowance > 0 && (
+                      <div className="flex justify-between">
+                        <span>その他手当:</span>
+                        <span className="font-medium">¥{salaryData.otherAllowance.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {salaryData.overtimePay > 0 && (
+                      <div className="flex justify-between">
+                        <span>残業代 ({formatMinutes(salaryData.totalOvertimeMinutes)} × {salaryData.overtimeRate}倍):</span>
+                        <span className="font-medium">¥{salaryData.overtimePay.toLocaleString()}</span>
                       </div>
                     )}
                     <div className="border-t pt-2 flex justify-between font-semibold">
