@@ -55,9 +55,32 @@ export default function StaffTimecard({ store, onBack, isEmbedded = false }: Sta
     return saved ? JSON.parse(saved) : [];
   });
 
+  // ページが表示される度にlocalStorageから復元
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setSelectedStaffList(parsed);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, [storageKey]);
+
   const { data: staffList } = useQuery({
     queryKey: ['staff', store.id],
     queryFn: () => staffApi.getByStore(store.id),
+    staleTime: 5 * 60 * 1000, // 5分間はキャッシュを使用
+    gcTime: 10 * 60 * 1000, // 10分間はメモリに保持
   });
 
   const [toast, setToast] = useState<string | null>(null);
@@ -104,8 +127,12 @@ export default function StaffTimecard({ store, onBack, isEmbedded = false }: Sta
       
       // 午前4時0分〜4時1分の間にリセット
       if (hours === 4 && minutes === 0) {
+        console.log('4:00 AM - Resetting staff cards');
         cleanupOldData();
         setSelectedStaffList([]);
+        localStorage.removeItem(storageKey);
+        // すべてのスタッフカードをクリア
+        window.location.reload();
       }
     };
 
@@ -116,7 +143,7 @@ export default function StaffTimecard({ store, onBack, isEmbedded = false }: Sta
     checkAndReset();
     
     return () => clearInterval(interval);
-  }, []);
+  }, [storageKey]);
 
   const showToast = (message: string) => {
     setToast(message);
