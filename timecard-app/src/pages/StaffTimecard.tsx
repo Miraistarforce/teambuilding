@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { staffApi, timeRecordsApi, fetchCSRFToken } from '../lib/api';
 import { saveTimeRecordOffline, getTimeRecordOffline, syncPendingRecords } from '../lib/indexedDB';
+import { subscribeToTimeRecords, unsubscribeChannel } from '../lib/supabase';
 
 interface StaffTimecardProps {
   store: { id: number; name: string };
@@ -319,6 +320,42 @@ function StaffCard({
   const [localRecord, setLocalRecord] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
+  // Realtime購読
+  useEffect(() => {
+    const channel = subscribeToTimeRecords((payload) => {
+      // 自分のスタッフIDの変更のみ処理
+      if (payload.new?.staffId === staffId || payload.old?.staffId === staffId) {
+        console.log(`Realtime update for staff ${staffId}:`, payload);
+        // React Queryのキャッシュを無効化して再取得
+        queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
+      }
+    });
+
+    // 再接続処理
+    const handleReconnect = () => {
+      if (document.visibilityState === 'visible' || navigator.onLine) {
+        console.log('Reconnecting to Realtime...');
+        unsubscribeChannel(channel);
+        const newChannel = subscribeToTimeRecords((payload) => {
+          if (payload.new?.staffId === staffId || payload.old?.staffId === staffId) {
+            queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
+          }
+        });
+        return newChannel;
+      }
+    };
+
+    // visibilitychange と online イベントで再購読
+    document.addEventListener('visibilitychange', handleReconnect);
+    window.addEventListener('online', handleReconnect);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleReconnect);
+      window.removeEventListener('online', handleReconnect);
+      unsubscribeChannel(channel);
+    };
+  }, [staffId, queryClient]);
+  
   // オフライン時用のローカルレコード読み込み
   useEffect(() => {
     const loadLocalRecord = async () => {
@@ -336,9 +373,9 @@ function StaffCard({
   const { data: timeRecord, refetch: refetchRecord, isError } = useQuery({
     queryKey: ['timeRecord', staffId],
     queryFn: () => timeRecordsApi.getTodayRecord(staffId),
-    refetchInterval: 60000, // 1分ごとに更新
-    staleTime: 0, // 常に最新データを取得
-    gcTime: 0, // キャッシュを保持しない
+    refetchInterval: 30000, // 30秒ごとに更新（Realtimeがメインなので頻度を下げる）
+    staleTime: 10000, // 10秒は新鮮なデータとみなす
+    gcTime: 60000, // 1分はキャッシュ保持
     retry: 3,
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
