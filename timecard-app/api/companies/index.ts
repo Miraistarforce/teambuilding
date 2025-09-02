@@ -31,7 +31,7 @@ export default async function handler(
   // CORS設定
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
 
   if (req.method === 'OPTIONS') {
@@ -39,47 +39,12 @@ export default async function handler(
     return;
   }
 
-  const url = new URL(req.url || '', `http://${req.headers.host}`);
-  const pathSegments = url.pathname.split('/').filter(Boolean);
-
   try {
     // 認証チェック
     const token = req.headers.authorization;
     const decoded = authenticate(token) as any;
     authorizeAdmin(decoded);
 
-    // /api/companies/:id - 個別会社操作
-    if (pathSegments[2]) {
-      const companyId = parseInt(pathSegments[2]);
-
-      if (req.method === 'PUT') {
-        const { name, password, isActive } = req.body;
-
-        const updateData: any = {};
-        
-        if (name !== undefined) updateData.name = name;
-        if (isActive !== undefined) updateData.isActive = isActive;
-        if (password) updateData.password = await bcrypt.hash(password, 10);
-
-        const company = await prisma.company.update({
-          where: { id: companyId },
-          data: updateData
-        });
-
-        res.status(200).json(company);
-      } else if (req.method === 'DELETE') {
-        await prisma.company.delete({
-          where: { id: companyId }
-        });
-
-        res.status(204).end();
-      } else {
-        res.status(405).json({ error: 'Method not allowed' });
-      }
-      return;
-    }
-
-    // /api/companies - 会社一覧・作成
     if (req.method === 'GET') {
       const companies = await prisma.company.findMany({
         orderBy: { createdAt: 'desc' },
