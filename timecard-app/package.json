@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 4002",
-    "build": "tsc && vite build",
-    "preview": "vite preview --port 4002"
+    "build": "prisma generate && tsc && vite build",
+    "preview": "vite preview --port 4002",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@holiday-jp/holiday_jp": "^2.5.1",
@@ -15,9 +16,13 @@
     "@tanstack/react-query": "^5.13.4",
     "@vercel/node": "^5.3.17",
     "axios": "^1.6.2",
+    "bcryptjs": "^3.0.2",
     "date-fns": "^4.1.0",
     "html2canvas": "^1.4.1",
+    "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.1",
+    "multer": "^2.0.2",
+    "openai": "^5.16.0",
     "prisma": "^6.15.0",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
