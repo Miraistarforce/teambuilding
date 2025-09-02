@@ -1,8 +1,17 @@
 {
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/api/time-records/staff/:staffId/today",
+      "destination": "/api/time-records/[staffId]/today"
+    },
+    {
+      "source": "/api/staff/store/:storeId",
+      "destination": "/api/staff/[storeId]"
     }
   ]
 }

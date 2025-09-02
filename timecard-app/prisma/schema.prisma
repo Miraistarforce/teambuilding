@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  password   String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  stores     Store[]
+}
+
+model Store {
+  id              Int      @id @default(autoincrement())
+  companyId       Int
+  name            String
+  managerPassword String
+  ownerPassword   String
+  bonusEnabled    Boolean  @default(true)  // 賞与プレゼント機能の有効/無効
+  isActive        Boolean  @default(true)
+  qrEnabled       Boolean  @default(true)  // QRコードURLの有効/無効  
+  qrToken         String?  @unique         // QRコード用のトークン
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  staff           Staff[]
+  interviews      Interview[]
+  dailyReports    DailyReport[]
+  commentTemplates CommentTemplate[]
+  dailyReportFormat DailyReportFormat?
+  tensionAlertSettings TensionAlertSettings?
+  
+  @@unique([companyId, name])
+}
+
+model Staff {
+  id                Int      @id @default(autoincrement())
+  storeId           Int
+  name              String
+  hourlyWage        Int
+  holidayAllowance  Int      @default(0)     // 祖日手当（時給に+いくら）
+  overtimeRate      Float    @default(1.25)  // 残業代倍率
+  otherAllowance    Int      @default(0)     // その他手当（月額）
+  transportationAllowance Int @default(0)    // 交通費（1日あたり）
+  hasTransportation Boolean  @default(false) // 交通費支給の有無
+  hireDate          DateTime?                // 入社日
+  mbtiType          String?                  // MBTI性格タイプ
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  store             Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  timeRecords       TimeRecord[]
+  interviews        Interview[]
+  dailyReports      DailyReport[]
+  tensionAnalyses   TensionAnalysis[]
+  tensionStats      StaffTensionStats?
+  employeeSettings  EmployeeSettings?
+  
+  @@unique([storeId, name])
+}
+
+model EmployeeSettings {
+  id                             Int      @id @default(autoincrement())
+  staffId                        Int      @unique
+  employeeType                   String   @default("hourly") // "hourly" or "monthly"
+  monthlyBaseSalary              Int      @default(0)
+  monthlyWorkDays                Int      @default(20) // 月の勤務日数
+  scheduledStartTime             String   @default("09:00")
+  scheduledEndTime               String   @default("18:00")
+  includeEarlyArrivalAsOvertime  Boolean  @default(false)
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+  
+  staff                          Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+model TimeRecord {
+  id           Int       @id @default(autoincrement())
+  staffId      Int
+  date         DateTime
+  clockIn      DateTime?
+  clockOut     DateTime?
+  breakStart   DateTime?
+  breakEnd     DateTime?
+  totalBreak   Int       @default(0) // Total break time in minutes
+  workMinutes  Int       @default(0) // Total work time in minutes
+  previousWorkMinutes Int @default(0) // Previous work time before re-clocking in
+  status       String    @default("NOT_STARTED")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  staff        Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  breakRecords BreakRecord[]
+  
+  @@unique([staffId, date])
+  @@index([date])
+}
+
+model BreakRecord {
+  id           Int        @id @default(autoincrement())
+  timeRecordId Int
+  breakStart   DateTime
+  breakEnd     DateTime?
+  minutes      Int        @default(0)
+  
+  timeRecord   TimeRecord @relation(fields: [timeRecordId], references: [id], onDelete: Cascade)
+}
+
+model Interview {
+  id           Int        @id @default(autoincrement())
+  staffId      Int
+  storeId      Int
+  audioUrl     String?    // 音声ファイルのURL
+  pdfUrl       String?    // PDFファイルのURL
+  textContent  String?    // テキスト内容
+  summary      String?    // AI要約
+  advice       String?    // 次回アドバイス
+  createdBy    String     // 作成者 (manager/owner)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  staff        Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  store        Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@index([staffId])
+  @@index([storeId])
+}
+
+model DailyReport {
+  id           Int        @id @default(autoincrement())
+  staffId      Int
+  storeId      Int
+  date         DateTime   // 日報の日付
+  content      String     // 日報内容（旧形式）
+  formData     String?    // 新形式のJSON形式データ
+  isRead       Boolean    @default(false) // 既読フラグ
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  staff        Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  store        Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  comments     DailyReportComment[]
+  tensionAnalysis TensionAnalysis?
+  
+  @@unique([staffId, date])
+  @@index([storeId, date])
+}
+
+model DailyReportComment {
+  id           Int        @id @default(autoincrement())
+  reportId     Int
+  emoji        String?    // 顔スタンプ
+  comment      String?    // コメント内容
+  hasBonus     Boolean    @default(false) // 賞与フラグ
+  createdBy    String     // コメントした人（manager/owner）
+  createdAt    DateTime   @default(now())
+  
+  report       DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  @@index([reportId])
+}
+
+model CommentTemplate {
+  id           Int        @id @default(autoincrement())
+  storeId      Int
+  template     String     // テンプレート内容
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  store        Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@index([storeId])
+}
+
+model DailyReportFormat {
+  id           Int        @id @default(autoincrement())
+  storeId      Int        @unique
+  fields       String     // JSON形式でフィールド情報を保存
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  store        Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}
+
+model TensionAnalysis {
+  id           Int        @id @default(autoincrement())
+  staffId      Int
+  reportId     Int        @unique
+  date         DateTime
+  tensionScore Float      // -1.0 ~ 1.0 のスコア（-1:ネガティブ、0:中立、1:ポジティブ）
+  keywords     String?    // 検出されたキーワード（JSON形式）
+  createdAt    DateTime   @default(now())
+  
+  staff        Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  report       DailyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  @@index([staffId, date])
+}
+
+model StaffTensionStats {
+  id           Int        @id @default(autoincrement())
+  staffId      Int        @unique
+  avgScore     Float      // 過去の平均テンションスコア
+  stdDeviation Float      // 標準偏差
+  dataCount    Int        // データ数
+  lastUpdated  DateTime   @updatedAt
+  
+  staff        Staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+model TensionAlertSettings {
+  id               Int        @id @default(autoincrement())
+  storeId          Int        @unique
+  alertThreshold   Float      @default(0.3)  // 平均からどれだけ下がったらアラート
+  consecutiveDays  Int        @default(3)    // 何日連続で低いとアラート
+  isEnabled        Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  
+  store            Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}
