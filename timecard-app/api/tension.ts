@@ -1,14 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
-import OpenAI from 'openai';
-
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret-change-in-production';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 // 認証ミドルウェア
 const authenticate = (token: string | undefined) => {
