@@ -20,4 +20,4 @@ export default async function handler(
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'production'
   });
-}
+}// Trigger rebuild
