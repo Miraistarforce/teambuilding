@@ -1,17 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
-
-const getToday = () => {
-  const now = new Date();
-  // 午前4時を基準に日付を判定
-  if (now.getHours() < 4) {
-    now.setDate(now.getDate() - 1);
-  }
-  now.setHours(0, 0, 0, 0);
-  return now;
-};
+import prisma from '../../lib/prisma';
+import { getTodayJST, getTodayJSTRange } from '../../lib/dateHelpers';
 
 export default async function handler(
   req: VercelRequest,
@@ -35,13 +24,24 @@ export default async function handler(
 
   try {
     const { staffId } = req.query;
-    const today = getToday();
+    const today = getTodayJST();
+    const { start, end } = getTodayJSTRange();
+    
+    console.log('Get Today Record Debug:', {
+      staffId,
+      today: today.toISOString(),
+      rangeStart: start.toISOString(),
+      rangeEnd: end.toISOString(),
+      jstNow: new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString()
+    });
 
-    const record = await prisma.timeRecord.findUnique({
+    // 日付範囲で検索（findFirstを使用）
+    const record = await prisma.timeRecord.findFirst({
       where: {
-        staffId_date: {
-          staffId: parseInt(staffId as string),
-          date: today
+        staffId: parseInt(staffId as string),
+        date: {
+          gte: start,
+          lte: end
         }
       },
       include: {
@@ -53,7 +53,5 @@ export default async function handler(
   } catch (error) {
     console.error('Error fetching today record:', error);
     res.status(200).json(null); // エラー時もnullを返す
-  } finally {
-    await prisma.$disconnect();
   }
 }

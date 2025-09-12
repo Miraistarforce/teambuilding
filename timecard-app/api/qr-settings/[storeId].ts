@@ -1,9 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import prisma from '../lib/prisma';
 import crypto from 'crypto';
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret-change-in-production';
 
 // 認証ミドルウェア
@@ -17,6 +16,11 @@ const authenticate = (token: string | undefined) => {
   }
 };
 
+// ランダムトークン生成
+const generateQrToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
@@ -24,7 +28,7 @@ export default async function handler(
   // CORS設定
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
 
   if (req.method === 'OPTIONS') {
@@ -32,40 +36,30 @@ export default async function handler(
     return;
   }
 
+  const { storeId } = req.query;
+
+  if (!storeId) {
+    res.status(400).json({ error: 'Store ID is required' });
+    return;
+  }
+
   try {
-    const { storeId } = req.query;
+    // 認証チェック
+    const token = req.headers.authorization;
+    authenticate(token);
 
     if (req.method === 'GET') {
-      // QRトークンで認証なしアクセスの場合
-      const { token } = req.query;
-      
-      if (token) {
-        const store = await prisma.store.findFirst({
-          where: {
-            qrToken: token as string,
-            qrEnabled: true,
-            isActive: true
-          }
-        });
-
-        if (store) {
-          res.status(200).json({
-            storeId: store.id,
-            storeName: store.name,
-            valid: true
-          });
-        } else {
-          res.status(404).json({ error: 'Invalid QR token' });
-        }
-        return;
-      }
-
-      // 通常の認証付きアクセス
-      const authToken = req.headers.authorization;
-      authenticate(authToken);
-
+      // QR設定を取得
       const store = await prisma.store.findUnique({
-        where: { id: parseInt(storeId as string) }
+        where: {
+          id: parseInt(storeId as string)
+        },
+        select: {
+          id: true,
+          name: true,
+          qrEnabled: true,
+          qrToken: true
+        }
       });
 
       if (!store) {
@@ -73,48 +67,40 @@ export default async function handler(
         return;
       }
 
+      // qrTokenがない場合は生成
+      let qrToken = store.qrToken;
+      if (!qrToken) {
+        qrToken = generateQrToken();
+        await prisma.store.update({
+          where: { id: parseInt(storeId as string) },
+          data: { qrToken }
+        });
+      }
+
       res.status(200).json({
-        qrEnabled: store.qrEnabled,
-        qrToken: store.qrToken,
-        qrUrl: store.qrToken ? `${process.env.FRONTEND_URL || 'https://teambuilding-timecard.vercel.app'}/qr/${store.qrToken}` : null
+        ...store,
+        qrToken
       });
     } else if (req.method === 'PUT') {
-      // 認証チェック
-      const token = req.headers.authorization;
-      authenticate(token);
-
+      // QR設定を更新
       const { qrEnabled } = req.body;
 
-      const store = await prisma.store.update({
-        where: { id: parseInt(storeId as string) },
-        data: { qrEnabled }
-      });
-
-      res.status(200).json({
-        qrEnabled: store.qrEnabled,
-        qrToken: store.qrToken
-      });
-    } else if (req.method === 'POST') {
-      // 認証チェック
-      const token = req.headers.authorization;
-      authenticate(token);
-
-      // 新しいQRトークンを生成
-      const qrToken = crypto.randomBytes(32).toString('hex');
-
-      const store = await prisma.store.update({
-        where: { id: parseInt(storeId as string) },
+      const updatedStore = await prisma.store.update({
+        where: {
+          id: parseInt(storeId as string)
+        },
         data: {
-          qrToken,
-          qrEnabled: true
+          qrEnabled: qrEnabled
+        },
+        select: {
+          id: true,
+          name: true,
+          qrEnabled: true,
+          qrToken: true
         }
       });
 
-      res.status(200).json({
-        qrEnabled: store.qrEnabled,
-        qrToken: store.qrToken,
-        qrUrl: `${process.env.FRONTEND_URL || 'https://teambuilding-timecard.vercel.app'}/qr/${store.qrToken}`
-      });
+      res.status(200).json(updatedStore);
     } else {
       res.status(405).json({ error: 'Method not allowed' });
     }
@@ -125,7 +111,5 @@ export default async function handler(
       console.error('QR settings error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  } finally {
-    await prisma.$disconnect();
   }
 }

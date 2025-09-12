@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
+import { getTodayJSTString } from '../lib/dateHelpers';
 
 interface ReportField {
   id: string;
@@ -84,7 +85,7 @@ export default function DailyReportPublic() {
       const submitData = new FormData();
       submitData.append('storeId', storeInfo.storeId.toString());
       submitData.append('staffId', selectedStaffId.toString());
-      submitData.append('date', new Date().toISOString().split('T')[0]);
+      submitData.append('date', getTodayJSTString());
       
       // Add text data
       Object.keys(formData).forEach(key => {

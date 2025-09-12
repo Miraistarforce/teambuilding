@@ -1,7 +1,7 @@
 // Service Worker for offline support and background sync
 
-const CACHE_NAME = 'timecard-v1';
-const API_BASE_URL = 'https://teambuilding-backend.onrender.com/api';
+const CACHE_NAME = 'timecard-v2';
+const API_BASE_URL = '/api';
 
 // Install event - cache essential files
 self.addEventListener('install', (event) => {

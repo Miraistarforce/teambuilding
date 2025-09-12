@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
-import prisma from '../lib/prisma';
+import prisma from '../../lib/prisma';
+import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret-change-in-production';
 
@@ -15,6 +16,11 @@ const authenticate = (token: string | undefined) => {
   }
 };
 
+// ランダムトークン生成
+const generateQrToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
@@ -22,7 +28,7 @@ export default async function handler(
   // CORS設定
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
 
   if (req.method === 'OPTIONS') {
@@ -30,8 +36,15 @@ export default async function handler(
     return;
   }
 
-  if (req.method !== 'GET') {
+  if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  const { storeId } = req.query;
+
+  if (!storeId) {
+    res.status(400).json({ error: 'Store ID is required' });
     return;
   }
 
@@ -40,54 +53,31 @@ export default async function handler(
     const token = req.headers.authorization;
     authenticate(token);
 
-    const { storeId, year, month } = req.query;
-    
-    const startDate = new Date(parseInt(year as string), parseInt(month as string) - 1, 1);
-    const endDate = new Date(parseInt(year as string), parseInt(month as string), 0);
+    // 新しいトークンを生成
+    const newToken = generateQrToken();
 
-    const timeRecords = await prisma.timeRecord.findMany({
+    // ストアのQRトークンを更新
+    const updatedStore = await prisma.store.update({
       where: {
-        staff: {
-          storeId: parseInt(storeId as string)
-        },
-        date: {
-          gte: startDate,
-          lte: endDate
-        }
+        id: parseInt(storeId as string)
       },
-      include: {
-        staff: {
-          include: {
-            employeeSettings: true
-          }
-        },
-        breakRecords: true
+      data: {
+        qrToken: newToken
       },
-      orderBy: [
-        { date: 'asc' },
-        { staff: { name: 'asc' } }
-      ]
+      select: {
+        id: true,
+        name: true,
+        qrEnabled: true,
+        qrToken: true
+      }
     });
 
-    // スタッフごとにグループ化
-    const staffRecords = timeRecords.reduce((acc, record) => {
-      const staffId = record.staffId;
-      if (!acc[staffId]) {
-        acc[staffId] = {
-          staff: record.staff,
-          records: []
-        };
-      }
-      acc[staffId].records.push(record);
-      return acc;
-    }, {} as any);
-
-    res.status(200).json(Object.values(staffRecords));
+    res.status(200).json(updatedStore);
   } catch (error: any) {
     if (error.message === 'Invalid token' || error.message === 'No token provided') {
       res.status(401).json({ error: 'Unauthorized' });
     } else {
-      console.error('Report error:', error);
+      console.error('QR regeneration error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   }

@@ -1,4 +1,4 @@
 .vercel
 .env
-.env.local
+!.env.local
 !.env.production

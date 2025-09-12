@@ -1,8 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
-  process.env.NODE_ENV === 'development' ? 'http://localhost:3000/api' : '/api'
-);
+// 相対パス /api に統一（Vercel内で完結）
+const API_BASE_URL = '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

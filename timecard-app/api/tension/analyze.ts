@@ -1,9 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import OpenAI from 'openai';
+import prisma from '../lib/prisma';
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret-change-in-production';
 
 const openai = new OpenAI({
@@ -331,7 +330,5 @@ export default async function handler(
       console.error('Tension analysis error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  } finally {
-    await prisma.$disconnect();
   }
 }

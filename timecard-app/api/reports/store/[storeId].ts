@@ -1,8 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import prisma from '../../lib/prisma';
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret-change-in-production';
 
 // 認証ミドルウェア
@@ -103,13 +102,14 @@ export default async function handler(
         }
       });
 
-      // 勤務時間を計算
+      // 勤務時間を計算（previousWorkMinutesを含む累積時間）
       let workMinutes = 0;
       if (record.clockIn && record.clockOut) {
         const totalMinutes = Math.floor(
           (new Date(record.clockOut).getTime() - new Date(record.clockIn).getTime()) / 60000
         );
-        workMinutes = totalMinutes - totalBreak;
+        // 現在の勤務時間 + 以前の勤務時間（同日の再出勤分）
+        workMinutes = (totalMinutes - totalBreak) + (record.previousWorkMinutes || 0);
       }
 
       return {
@@ -171,7 +171,8 @@ export default async function handler(
           
           acc[staffId].totalMinutes += totalMinutes;
           acc[staffId].totalBreakMinutes += totalBreak;
-          acc[staffId].totalWorkMinutes += (totalMinutes - totalBreak);
+          // 累積勤務時間（previousWorkMinutesを含む）
+          acc[staffId].totalWorkMinutes += (totalMinutes - totalBreak) + (record.previousWorkMinutes || 0);
         }
 
         return acc;
@@ -189,7 +190,5 @@ export default async function handler(
       console.error('Reports error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  } finally {
-    await prisma.$disconnect();
   }
 }

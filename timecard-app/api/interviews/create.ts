@@ -1,11 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { PrismaClient } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
 import multer from 'multer';
 import OpenAI from 'openai';
 import jwt from 'jsonwebtoken';
+import prisma from '../lib/prisma';
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret-change-in-production';
 
 const supabase = createClient(
@@ -155,7 +154,5 @@ export default async function handler(
       console.error('Interview error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  } finally {
-    await prisma.$disconnect();
   }
 }

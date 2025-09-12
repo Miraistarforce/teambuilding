@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { staffApi, timeRecordsApi, fetchCSRFToken } from '../lib/api';
 import { saveTimeRecordOffline, getTimeRecordOffline, syncPendingRecords } from '../lib/indexedDB';
-import { subscribeToTimeRecords, unsubscribeChannel } from '../lib/supabase';
+import { getTodayJSTString } from '../lib/dateHelpers';
 
 interface StaffTimecardProps {
   store: { id: number; name: string };
@@ -16,34 +16,11 @@ interface SelectedStaff {
   name: string;
 }
 
-// ローカルストレージのキーを生成（店舗IDと日付を含む）
+// ローカルストレージのキーを生成（店舗IDのみ）
 const getStorageKey = (storeId: number) => {
-  const today = new Date();
-  // 午前4時を基準に日付を判定
-  if (today.getHours() < 4) {
-    today.setDate(today.getDate() - 1);
-  }
-  const dateStr = today.toISOString().split('T')[0];
-  return `timecard_staff_${storeId}_${dateStr}`;
+  return `timecard_staff_${storeId}`;
 };
 
-// 古いデータをクリーンアップ
-const cleanupOldData = () => {
-  const today = new Date();
-  if (today.getHours() < 4) {
-    today.setDate(today.getDate() - 1);
-  }
-  const todayStr = today.toISOString().split('T')[0];
-  
-  Object.keys(localStorage).forEach(key => {
-    if (key.startsWith('timecard_staff_')) {
-      const dateMatch = key.match(/\d{4}-\d{2}-\d{2}$/);
-      if (dateMatch && dateMatch[0] !== todayStr) {
-        localStorage.removeItem(key);
-      }
-    }
-  });
-};
 
 export default function StaffTimecard({ store, onBack, isEmbedded = false }: StaffTimecardProps) {
   const navigate = useNavigate();
@@ -51,7 +28,6 @@ export default function StaffTimecard({ store, onBack, isEmbedded = false }: Sta
   
   // 初期状態をローカルストレージから読み込み
   const [selectedStaffList, setSelectedStaffList] = useState<SelectedStaff[]>(() => {
-    cleanupOldData(); // 古いデータをクリーンアップ
     const saved = localStorage.getItem(storageKey);
     return saved ? JSON.parse(saved) : [];
   });
@@ -80,8 +56,9 @@ export default function StaffTimecard({ store, onBack, isEmbedded = false }: Sta
   const { data: staffList } = useQuery({
     queryKey: ['staff', store.id],
     queryFn: () => staffApi.getByStore(store.id),
-    staleTime: 5 * 60 * 1000, // 5分間はキャッシュを使用
-    gcTime: 10 * 60 * 1000, // 10分間はメモリに保持
+    staleTime: 30000, // 30秒で古いデータと判定
+    gcTime: 5 * 60 * 1000, // 5分間はメモリに保持
+    refetchInterval: 60000, // 1分ごとに更新
   });
 
   const [toast, setToast] = useState<string | null>(null);
@@ -119,32 +96,6 @@ export default function StaffTimecard({ store, onBack, isEmbedded = false }: Sta
     localStorage.setItem(storageKey, JSON.stringify(selectedStaffList));
   }, [selectedStaffList, storageKey]);
 
-  // 午前4時に自動リセット
-  useEffect(() => {
-    const checkAndReset = () => {
-      const now = new Date();
-      const hours = now.getHours();
-      const minutes = now.getMinutes();
-      
-      // 午前4時0分〜4時1分の間にリセット
-      if (hours === 4 && minutes === 0) {
-        console.log('4:00 AM - Resetting staff cards');
-        cleanupOldData();
-        setSelectedStaffList([]);
-        localStorage.removeItem(storageKey);
-        // すべてのスタッフカードをクリア
-        window.location.reload();
-      }
-    };
-
-    // 1分ごとにチェック
-    const interval = setInterval(checkAndReset, 60000);
-    
-    // 初回チェック
-    checkAndReset();
-    
-    return () => clearInterval(interval);
-  }, [storageKey]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -180,9 +131,6 @@ export default function StaffTimecard({ store, onBack, isEmbedded = false }: Sta
         <div className="bg-background-main rounded-lg shadow-subtle p-6 mb-6">
           <div className="flex justify-between items-center mb-2">
             <label className="text-sm font-medium">スタッフを追加</label>
-            <span className="text-xs text-text-sub">
-              ※カードは午前4時にリセットされます
-            </span>
           </div>
           <select
             onChange={handleStaffAdd}
@@ -255,9 +203,6 @@ export default function StaffTimecard({ store, onBack, isEmbedded = false }: Sta
         <div className="bg-background-main rounded-lg shadow-subtle p-6 mb-6">
           <div className="flex justify-between items-center mb-2">
             <label className="text-sm font-medium">スタッフを追加</label>
-            <span className="text-xs text-text-sub">
-              ※カードは午前4時にリセットされます
-            </span>
           </div>
           <select
             onChange={handleStaffAdd}
@@ -320,50 +265,10 @@ function StaffCard({
   const [localRecord, setLocalRecord] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
-  // Realtime購読
-  useEffect(() => {
-    const channel = subscribeToTimeRecords((payload) => {
-      // 自分のスタッフIDの変更のみ処理
-      if (payload.new?.staffId === staffId || payload.old?.staffId === staffId) {
-        console.log(`Realtime update for staff ${staffId}:`, payload);
-        // React Queryのキャッシュを無効化して再取得
-        queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
-      }
-    });
-
-    // 再接続処理
-    const handleReconnect = () => {
-      if (document.visibilityState === 'visible' || navigator.onLine) {
-        console.log('Reconnecting to Realtime...');
-        unsubscribeChannel(channel);
-        const newChannel = subscribeToTimeRecords((payload) => {
-          if (payload.new?.staffId === staffId || payload.old?.staffId === staffId) {
-            queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
-          }
-        });
-        return newChannel;
-      }
-    };
-
-    // visibilitychange と online イベントで再購読
-    document.addEventListener('visibilitychange', handleReconnect);
-    window.addEventListener('online', handleReconnect);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleReconnect);
-      window.removeEventListener('online', handleReconnect);
-      unsubscribeChannel(channel);
-    };
-  }, [staffId, queryClient]);
-  
   // オフライン時用のローカルレコード読み込み
   useEffect(() => {
     const loadLocalRecord = async () => {
-      const today = new Date();
-      if (today.getHours() < 4) {
-        today.setDate(today.getDate() - 1);
-      }
-      const dateStr = today.toISOString().split('T')[0];
+      const dateStr = getTodayJSTString();
       const record = await getTimeRecordOffline(staffId, dateStr);
       setLocalRecord(record);
     };
@@ -371,11 +276,12 @@ function StaffCard({
   }, [staffId]);
   
   const { data: timeRecord, refetch: refetchRecord, isError } = useQuery({
-    queryKey: ['timeRecord', staffId],
+    queryKey: ['timeRecord', staffId, getTodayJSTString()], // 日付をキーに追加
     queryFn: () => timeRecordsApi.getTodayRecord(staffId),
-    refetchInterval: 30000, // 30秒ごとに更新（Realtimeがメインなので頻度を下げる）
-    staleTime: 10000, // 10秒は新鮮なデータとみなす
+    staleTime: 5000, // 5秒で古いデータと判定
     gcTime: 60000, // 1分はキャッシュ保持
+    refetchInterval: 30000, // 30秒ごとに自動更新
+    refetchIntervalInBackground: true, // バックグラウンドでも更新
     retry: 3,
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
@@ -384,14 +290,10 @@ function StaffCard({
   useEffect(() => {
     const saveToIndexedDB = async () => {
       if (timeRecord) {
-        const today = new Date();
-        if (today.getHours() < 4) {
-          today.setDate(today.getDate() - 1);
-        }
         await saveTimeRecordOffline({
           ...timeRecord,
           staffId,
-          date: today.toISOString().split('T')[0],
+          date: getTodayJSTString(),
           syncStatus: 'synced'
         });
         setLocalRecord(timeRecord);
@@ -433,16 +335,18 @@ function StaffCard({
 
   const clockInMutation = useMutation({
     mutationFn: () => timeRecordsApi.clockIn(staffId),
+    onMutate: () => {
+      // オプティミスティックアップデートの準備
+      console.log(`[${new Date().toISOString()}] Clock-in API called for staffId: ${staffId}`);
+      console.log(`API URL: ${window.location.origin}/api/time-records/clock-in`);
+    },
     onSuccess: async (data) => {
-      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
+      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId, getTodayJSTString()] });
       await refetchRecord();
       showToast(`${staffName}さんが出勤しました`);
       
       // IndexedDBに保存
       const today = new Date();
-      if (today.getHours() < 4) {
-        today.setDate(today.getDate() - 1);
-      }
       await saveTimeRecordOffline({
         ...data,
         staffId,
@@ -450,13 +354,13 @@ function StaffCard({
         syncStatus: 'synced'
       });
     },
-    onError: async () => {
+    onError: async (error: any) => {
+      console.error(`[${new Date().toISOString()}] Clock-in error:`, error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       // オフライン時はローカルに保存
       const now = new Date();
       const today = new Date();
-      if (today.getHours() < 4) {
-        today.setDate(today.getDate() - 1);
-      }
       
       const offlineRecord = {
         staffId,
@@ -478,37 +382,45 @@ function StaffCard({
 
   const clockOutMutation = useMutation({
     mutationFn: () => timeRecordsApi.clockOut(staffId),
+    onMutate: () => {
+      console.log(`[${new Date().toISOString()}] Clock-out API called for staffId: ${staffId}`);
+    },
     onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
+      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId, getTodayJSTString()] });
       await refetchRecord();
       showToast(`${staffName}さんが退勤しました`);
     },
-    onError: () => {
-      showToast(`エラーが発生しました`);
+    onError: (error: any) => {
+      console.error(`[${new Date().toISOString()}] Clock-out error:`, error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      showToast(`エラーが発生しました: ${error.response?.data?.error || error.message}`);
     }
   });
 
   const breakStartMutation = useMutation({
     mutationFn: () => timeRecordsApi.breakStart(staffId),
     onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
+      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId, getTodayJSTString()] });
       await refetchRecord();
       showToast(`${staffName}さんが休憩を開始しました`);
     },
-    onError: () => {
-      showToast(`エラーが発生しました`);
+    onError: (error: any) => {
+      console.error('Break start error:', error);
+      showToast(`エラーが発生しました: ${error.response?.data?.error || error.message}`);
     }
   });
 
   const breakEndMutation = useMutation({
     mutationFn: () => timeRecordsApi.breakEnd(staffId),
     onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId] });
+      queryClient.invalidateQueries({ queryKey: ['timeRecord', staffId, getTodayJSTString()] });
       await refetchRecord();
       showToast(`${staffName}さんが休憩を終了しました`);
     },
-    onError: () => {
-      showToast(`エラーが発生しました`);
+    onError: (error: any) => {
+      console.error('Break end error:', error);
+      showToast(`エラーが発生しました: ${error.response?.data?.error || error.message}`);
     }
   });
 
@@ -537,43 +449,12 @@ function StaffCard({
     return formatMinutes(Math.max(0, workMinutes));
   };
 
-  // 新しい日かどうかを判定（午前4時基準）
-  const isNewDay = () => {
-    if (!displayRecord) return false;
-    
-    // 退勤していない場合は新しい日ではない
-    if (!displayRecord.clockOut) return false;
-    
-    const now = new Date();
-    const clockIn = new Date(displayRecord.clockIn);
-    
-    // 出勤時刻が現在の「今日」と同じなら、新しい日ではない（すでに今日出勤している）
-    const currentToday = new Date(now);
-    if (now.getHours() < 4) {
-      currentToday.setDate(currentToday.getDate() - 1);
-    }
-    currentToday.setHours(0, 0, 0, 0);
-    
-    const clockInDay = new Date(clockIn);
-    if (clockIn.getHours() < 4) {
-      clockInDay.setDate(clockInDay.getDate() - 1);
-    }
-    clockInDay.setHours(0, 0, 0, 0);
-    
-    // 出勤日が今日と同じ場合は、新しい日ではない
-    if (clockInDay.getTime() === currentToday.getTime()) {
-      return false;
-    }
-    
-    // 出勤日が今日より前で、退勤済みなら新しい日
-    return clockInDay < currentToday;
-  };
 
   const isWorking = displayRecord && displayRecord.status === 'WORKING';
   const isOnBreak = displayRecord && displayRecord.status === 'ON_BREAK';
   const hasClockIn = displayRecord && displayRecord.clockIn;
   const hasClockOut = displayRecord && displayRecord.clockOut;
-  const shouldShowClockIn = !hasClockIn || (hasClockOut && isNewDay());
+  const shouldShowClockIn = !hasClockIn || hasClockOut;
 
   return (
     <div className="bg-background-main rounded-lg shadow-subtle p-6 relative">
@@ -599,7 +480,7 @@ function StaffCard({
       {/* スタッフ名と状態 */}
       <div className="mb-4">
         <h3 className="text-xl font-bold">{staffName}</h3>
-        {hasClockIn && !isNewDay() && (
+        {hasClockIn && (
           <div className="mt-2 space-y-1">
             <p className="text-sm text-accent-success">
               出勤 {formatTime(displayRecord.clockIn)}
@@ -616,7 +497,7 @@ function StaffCard({
             )}
           </div>
         )}
-        {(!hasClockIn || isNewDay()) && (
+        {!hasClockIn && (
           <p className="text-sm text-text-sub mt-1">未出勤</p>
         )}
       </div>
@@ -633,7 +514,7 @@ function StaffCard({
           </button>
         )}
 
-        {hasClockIn && !hasClockOut && !isNewDay() && (
+        {hasClockIn && !hasClockOut && (
           <div className="flex gap-2">
             {isWorking && (
               <button
@@ -663,7 +544,7 @@ function StaffCard({
           </div>
         )}
 
-        {hasClockOut && !isNewDay() && (
+        {hasClockOut && (
           <div className="space-y-2">
             <div className="text-center py-2 px-3 bg-background-sub rounded-lg">
               <span className="text-sm text-text-sub">本日の業務終了</span>
@@ -680,7 +561,7 @@ function StaffCard({
       </div>
 
       {/* 勤務状況 */}
-      {hasClockIn && !isNewDay() && (
+      {hasClockIn && (
         <div className="mt-4 pt-4 border-t space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-text-sub">現在の勤務時間</span>

@@ -1,8 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import prisma from '../lib/prisma';
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret-change-in-production';
 
 // 認証ミドルウェア
@@ -100,7 +99,5 @@ export default async function handler(
       console.error('Report format error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  } finally {
-    await prisma.$disconnect();
   }
 }

@@ -1,4 +1,5 @@
 // IndexedDB helper functions for offline support
+import { getTodayJSTString } from './dateHelpers';
 
 export interface TimeRecordCache {
   id?: number;
@@ -169,7 +170,7 @@ export const saveTimeRecordOffline = async (record: Partial<TimeRecordCache>) =>
     totalBreak: record.totalBreak || 0,
     workMinutes: record.workMinutes || 0,
     previousWorkMinutes: record.previousWorkMinutes || 0,
-    date: record.date || new Date().toISOString().split('T')[0],
+    date: record.date || getTodayJSTString(),
     syncStatus: 'pending',
     lastUpdated: new Date().toISOString(),
     ...record
@@ -187,7 +188,7 @@ export const saveTimeRecordOffline = async (record: Partial<TimeRecordCache>) =>
 };
 
 export const getTimeRecordOffline = async (staffId: number, date?: string) => {
-  const targetDate = date || new Date().toISOString().split('T')[0];
+  const targetDate = date || getTodayJSTString();
   return await indexedDBHelper.getTimeRecord(staffId, targetDate);
 };
 
