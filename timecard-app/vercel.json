@@ -1,7 +1,13 @@
 {
+  "env": {
+    "TZ": "Asia/Tokyo"
+  },
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 10
+      "maxDuration": 10,
+      "environment": {
+        "TZ": "Asia/Tokyo"
+      }
     }
   },
   "headers": [
