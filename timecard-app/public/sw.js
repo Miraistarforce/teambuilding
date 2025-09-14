@@ -1,18 +1,37 @@
 // Service Worker for offline support and background sync
 
-const CACHE_NAME = 'timecard-v2';
+const CACHE_NAME = 'timecard-v3'; // バージョンアップで古いキャッシュを削除
 const API_BASE_URL = '/api';
+
+// 削除すべき古いキャッシュ名のリスト
+const OLD_CACHES = ['timecard-v1', 'timecard-v2'];
 
 // Install event - cache essential files
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installing.');
-  self.skipWaiting();
+  console.log('Service Worker installing v3.');
+  self.skipWaiting(); // 即座に新しいService Workerをアクティブにする
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activated.');
-  event.waitUntil(clients.claim());
+  console.log('Service Worker v3 activated.');
+  event.waitUntil(
+    Promise.all([
+      // 古いキャッシュを全て削除
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // 全てのクライアントをコントロール
+      clients.claim()
+    ])
+  );
 });
 
 // Fetch event - handle network requests
