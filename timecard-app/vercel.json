@@ -4,10 +4,7 @@
   },
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 10,
-      "environment": {
-        "TZ": "Asia/Tokyo"
-      }
+      "maxDuration": 10
     }
   },
   "headers": [
